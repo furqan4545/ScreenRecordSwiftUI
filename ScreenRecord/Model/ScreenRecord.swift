@@ -5,11 +5,11 @@
 //  Created by Furqan Ali on 3/24/25.
 //
 
-
 import Foundation
 import AVFoundation
 import ScreenCaptureKit
 import Combine
+import Accelerate
 
 /// Model class that handles screen recording functionality
 class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
@@ -34,17 +34,17 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
         case error(Error)
         
         static func == (lhs: RecorderState, rhs: RecorderState) -> Bool {
-                switch (lhs, rhs) {
-                case (.idle, .idle),
-                     (.preparing, .preparing),
-                     (.recording, .recording):
-                    return true
-                case (.error(let lhsError), .error(let rhsError)):
-                    return lhsError.localizedDescription == rhsError.localizedDescription
-                default:
-                    return false
-                }
+            switch (lhs, rhs) {
+            case (.idle, .idle),
+                 (.preparing, .preparing),
+                 (.recording, .recording):
+                return true
+            case (.error(let lhsError), .error(let rhsError)):
+                return lhsError.localizedDescription == rhsError.localizedDescription
+            default:
+                return false
             }
+        }
     }
     
     // MARK: - Properties
@@ -108,19 +108,16 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
     func requestMicrophonePermission(completion: @escaping (Bool) -> Void) {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized:
-            // Already authorized
             completion(true)
         case .notDetermined:
-            // Request permission
             AVCaptureDevice.requestAccess(for: .audio) { granted in
                 DispatchQueue.main.async {
                     completion(granted)
                 }
             }
         case .denied, .restricted:
-            // Permission denied
             completion(false)
-        @unknown default:
+        default:
             completion(false)
         }
     }
@@ -132,18 +129,16 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
         
         streamType = .screen
         
-        // Select first available display if we have content
         if let firstDisplay = availableContent?.displays.first {
             screen = firstDisplay
             
-            // Exclude our own app from the recording
             let excludedApps = availableContent?.applications.filter {
                 Bundle.main.bundleIdentifier == $0.bundleIdentifier
             } ?? []
             
             filter = SCContentFilter(display: screen ?? firstDisplay,
-                                   excludingApplications: excludedApps,
-                                   exceptingWindows: [])
+                                       excludingApplications: excludedApps,
+                                       exceptingWindows: [])
             
             Task {
                 if let filter = filter {
@@ -169,7 +164,7 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
     
     // MARK: - Private Methods
     private func updateAudioSettings() {
-        audioSettings = [AVSampleRateKey: 48000, AVNumberOfChannelsKey: 2] // reset audio settings
+        audioSettings = [AVSampleRateKey: 48000, AVNumberOfChannelsKey: 2]
         audioSettings[AVFormatIDKey] = kAudioFormatMPEG4AAC
         audioSettings[AVEncoderBitRateKey] = AudioQuality.high.rawValue * 1000
     }
@@ -177,7 +172,6 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
     private func record(filter: SCContentFilter) async {
         let conf = SCStreamConfiguration()
         
-        // Configure stream settings
         conf.width = Int(filter.contentRect.width) * Int(filter.pointPixelScale)
         conf.height = Int(filter.contentRect.height) * Int(filter.pointPixelScale)
         conf.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(60))
@@ -189,22 +183,22 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
         stream = SCStream(filter: filter, configuration: conf, delegate: self)
         
         do {
-                if let stream = stream {
-                    try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: .global())
-                    try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: .global())
-                    initVideo(conf: conf)
-                    try await stream.startCapture()
-                    
-                    await MainActor.run {
-                        self.state = .recording
-                    }
-                }
-            } catch {
+            if let stream = stream {
+                try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: .global())
+                try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: .global())
+                initVideo(conf: conf)
+                try await stream.startCapture()
+                
                 await MainActor.run {
-                    self.state = .error(error)
+                    self.state = .recording
                 }
-                return
             }
+        } catch {
+            await MainActor.run {
+                self.state = .error(error)
+            }
+            return
+        }
     }
     
     private func initVideo(conf: SCStreamConfiguration) {
@@ -218,13 +212,11 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
         }
         
         if let downloadsDirectory = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first {
-            // Create a timestamped filename
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd-HH-mm-ss"
             let dateString = dateFormatter.string(from: Date())
             let url = downloadsDirectory.appendingPathComponent("Recording-\(dateString).\(fileEnding)")
             
-            // Move this to the main thread
             DispatchQueue.main.async {
                 self.outputURL = url
             }
@@ -234,7 +226,6 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
                 
                 let fpsMultiplier: Double = Double(60) / 8
                 let encoderMultiplier: Double = 0.9
-                
                 let targetBitrate = (Double(conf.width) * Double(conf.height) * fpsMultiplier * encoderMultiplier)
                 let videoSettings: [String: Any] = [
                     AVVideoCodecKey: AVVideoCodecType.hevc,
@@ -269,14 +260,47 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
                         vW!.add(micInput)
                     }
                     
-                    let input = audioEngine.inputNode
-                    input.installTap(onBus: 0, bufferSize: 1024, format: input.inputFormat(forBus: 0)) { [weak self] (buffer, time) in
-                        guard let self = self else { return }
-                        if self.micInput.isReadyForMoreMediaData {
-                            self.micInput.append(buffer.asScreenRecorderSampleBuffer!)
+                    // Instead of tapping directly on the inputNode, we create a mixer node to amplify the mic signal.
+                    let inputNode = audioEngine.inputNode
+                    let inputFormat = inputNode.outputFormat(forBus: 0)
+                    
+                    // Create and attach a mixer node for the microphone.
+                    let micMixer = AVAudioMixerNode()
+                    audioEngine.attach(micMixer)
+                    
+                    // Connect the input node to the mic mixer.
+                    audioEngine.connect(inputNode, to: micMixer, format: inputFormat)
+                    
+                    // Install a tap on the mixer node to boost the signal.
+                    micMixer.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, time in
+                        guard let self = self,
+                              let channelData = buffer.floatChannelData else { return }
+                        
+                        // Apply gain boost – adjust gainFactor as needed.
+                        let gainFactor: Float = 4.0
+                        let frameCount = Int(buffer.frameLength)
+                        let channelCount = Int(buffer.format.channelCount)
+                        
+                        for channel in 0..<channelCount {
+                            vDSP_vsmul(channelData[channel],
+                                       1,
+                                       [gainFactor],
+                                       channelData[channel],
+                                       1,
+                                       vDSP_Length(frameCount))
+                        }
+                        
+                        if self.micInput.isReadyForMoreMediaData,
+                           let sampleBuffer = buffer.asScreenRecorderSampleBuffer {
+                            self.micInput.append(sampleBuffer)
                         }
                     }
-                    try audioEngine.start()
+                    
+                    do {
+                        try audioEngine.start()
+                    } catch {
+                        print("Error starting audio engine: \(error.localizedDescription)")
+                    }
                 }
                 vW!.startWriting()
             } catch {
@@ -340,9 +364,6 @@ class ScreenRecorder: NSObject, SCStreamDelegate, SCStreamOutput {
             if awInput.isReadyForMoreMediaData {
                 awInput.append(sampleBuffer)
             }
-            
-//        case .microphone:
-            
             
         default:
             assertionFailure("Unknown stream type")
@@ -411,3 +432,4 @@ extension AVAudioPCMBuffer {
         return sampleBuffer
     }
 }
+
