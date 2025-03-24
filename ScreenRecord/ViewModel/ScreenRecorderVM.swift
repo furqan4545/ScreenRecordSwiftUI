@@ -21,7 +21,8 @@ class ScreenRecorderViewModel: ObservableObject {
     @Published var displays: [SCDisplay] = []
     
     // MARK: - Private Properties
-    private let recorder = ScreenRecorder()
+//    private let recorder = ScreenRecorder() // original working OG... mic and video composited.
+    private let recorder = ScreenRecorderWithSepMic()
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
