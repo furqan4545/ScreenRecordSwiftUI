@@ -62,12 +62,12 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
     // Microphone writer
     private var micWriter: AVAssetWriter?
     private var micWriterInput: AVAssetWriterInput?
-    private var micOutputURL: URL?
     
     // MARK: - Published Properties
     @Published var state: RecorderState = .idle
     @Published var displays: [SCDisplay] = []
     @Published var outputURL: URL?
+    @Published var micOutputURL: URL?
     
     // MARK: - Initialization
     override init() {
