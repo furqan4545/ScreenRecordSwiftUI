@@ -237,51 +237,22 @@ class ScreenRecorderViewModel: ObservableObject {
         }
     }
     
+    
+    // Denoiser: remove background noise.
     func enhanceAudio() {
         guard let microphoneURL = microphoneURL, !isProcessingAudio, !isRecording else { return }
         
         isProcessingAudio = true
         errorMessage = nil
         
-        // Run on background thread
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self, let denoiser = self.denoiser else {
-                DispatchQueue.main.async {
-                    self?.isProcessingAudio = false
-                    self?.errorMessage = "Denoiser not available"
-                }
-                return
-            }
-            
-            denoiser.denoiseFile(inputFileURL: microphoneURL) { outputURL in
-                DispatchQueue.main.async {
-                    self.isProcessingAudio = false
-                    
-                    if let outputURL = outputURL {
-                        do {
-                            // Create a copy in the downloads folder with a better name
-                            let downloadDir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-                            let originalFileName = microphoneURL.deletingPathExtension().lastPathComponent
-                            let enhancedFileName = "enhanced_\(originalFileName).wav"
-                            let finalURL = downloadDir.appendingPathComponent(enhancedFileName)
-                            
-                            // Remove existing file if it exists
-                            if FileManager.default.fileExists(atPath: finalURL.path) {
-                                try FileManager.default.removeItem(at: finalURL)
-                            }
-                            
-                            // Copy the enhanced file to downloads
-                            try FileManager.default.copyItem(at: outputURL, to: finalURL)
-                            
-                            self.enhancedAudioURL = finalURL
-                            print("Enhanced audio saved to: \(finalURL.path)")
-                        } catch {
-                            self.errorMessage = "Error saving enhanced audio: \(error.localizedDescription)"
-                            print("Error saving enhanced audio: \(error)")
-                        }
-                    } else {
-                        self.errorMessage = "Audio processing failed"
-                    }
+        denoiser?.enhanceAudio(inputURL: microphoneURL) { [weak self] finalURL in
+            DispatchQueue.main.async {
+                self?.isProcessingAudio = false
+                if let finalURL = finalURL {
+                    self?.enhancedAudioURL = finalURL
+                    print("Enhanced audio saved to: \(finalURL.path)")
+                } else {
+                    self?.errorMessage = "Audio processing failed"
                 }
             }
         }
