@@ -6,7 +6,6 @@
 ////
 
 
-
 import SwiftUI
 import ScreenCaptureKit
 import AVFoundation
@@ -39,7 +38,7 @@ struct ContentView: View {
             }
         }
         .padding()
-        .frame(width: 500, height: 400)  // Increased height for camera options
+        .frame(width: 500, height: 430)  // Increased height for cursor options
         .disabled(viewModel.isProcessingAudio) // Disable entire UI during processing
         .overlay {
             if viewModel.isProcessingAudio {
@@ -57,7 +56,7 @@ struct ContentView: View {
     
     private var recordingOptions: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Camera toggle
+            // Camera options
             HStack {
                 Toggle("Enable Camera Recording", isOn: $viewModel.isCameraEnabled)
                     .toggleStyle(.switch)
@@ -104,6 +103,15 @@ struct ContentView: View {
                 }
                 .padding(.leading, 20)
             }
+            
+            Divider()
+                .padding(.vertical, 5)
+            
+            // Cursor tracking option
+            Toggle("Track Cursor Data", isOn: $viewModel.isCursorTrackingEnabled)
+                .toggleStyle(.switch)
+                .disabled(viewModel.isRecording || viewModel.isPreparing)
+                .help("Records cursor position, clicks, and movement for analysis")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
@@ -310,6 +318,32 @@ struct ContentView: View {
                     
                     Button {
                         NSWorkspace.shared.activateFileViewerSelecting([cameraURL])
+                    } label: {
+                        Image(systemName: "folder")
+                        Text("Show in Finder")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.blue)
+                }
+            }
+            
+            if let cursorDataURL = viewModel.cursorDataURL {
+                Divider()
+                
+                Text("Cursor Tracking Data:")
+                    .font(.headline)
+                    .padding(.top, 5)
+                
+                HStack {
+                    Text(cursorDataURL.lastPathComponent)
+                        .font(.callout)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    
+                    Spacer()
+                    
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([cursorDataURL])
                     } label: {
                         Image(systemName: "folder")
                         Text("Show in Finder")
