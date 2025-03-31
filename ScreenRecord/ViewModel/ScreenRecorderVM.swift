@@ -1,5 +1,7 @@
-// ScreenRecorderVM.swift
+// // ScreenRecorderVM.swift
 
+
+///// ScreenRecorderVM.swift
 
 import Foundation
 import SwiftUI
@@ -17,11 +19,10 @@ class ScreenRecorderViewModel: ObservableObject {
     @Published var microphoneURL: URL?
     @Published var cameraURL: URL?
     @Published var enhancedAudioURL: URL?
-    @Published var cursorDataURL: URL?
     @Published var displays: [SCDisplay] = []
     @Published var isProcessingAudio: Bool = false
     @Published var showRecordingInfo: Bool = false
-    
+   
     // Camera related properties
     @Published var isCameraEnabled: Bool = false {
         didSet {
@@ -38,25 +39,19 @@ class ScreenRecorderViewModel: ObservableObject {
     @Published var availableCameras: [AVCaptureDevice] = []
     @Published var selectedCamera: AVCaptureDevice?
     @Published var isCameraReady: Bool = false
-    
-    // Cursor tracking properties
-    @Published var isCursorTrackingEnabled: Bool = true  // Default to enabled
-    @Published var currentCursorPosition: CGPoint = .zero
-    
+   
     // MARK: - Private Properties
-    private let recorder = ScreenRecorderWithSepMic()
+    private let recorder = ScreenRecorderWithHDR()
     private let cameraRecorder = CameraRecorder()
-    private let cursorTracker = CursorTracker()  // Cursor tracker
     private var cancellables = Set<AnyCancellable>()
     private var denoiser: AudioDenoiser?
-    
+   
     // MARK: - Initialization
     init() {
         setupDenoiser()
         setupBindings()
         requestPermission()
         setupCameraBindings()
-        setupCursorTrackerBindings()
     }
     
     // MARK: - Public Methods
@@ -78,16 +73,7 @@ class ScreenRecorderViewModel: ObservableObject {
             performRecording()
         }
     }
-    
-//    private func performRecording() {
-//        // Start screen recording
-//        recorder.startRecording()
-//        
-//        // Start camera recording if enabled
-//        if isCameraEnabled && isCameraReady {
-//            cameraRecorder.startRecording()
-//        }
-//    }
+   
     private func performRecording() {
         // Start camera recording first if enabled
         if isCameraEnabled && isCameraReady {
@@ -99,21 +85,13 @@ class ScreenRecorderViewModel: ObservableObject {
                 
                 // Start screen recording after the delay
                 self.recorder.startRecording()
-                // Start cursor tracking if enabled
-                if self.isCursorTrackingEnabled {
-                    self.cursorTracker.startTracking()
-                }
             }
         } else {
             // If no camera, start screen recording immediately
             recorder.startRecording()
-            // Start cursor tracking if enabled
-            if isCursorTrackingEnabled {
-                cursorTracker.startTracking()
-            }
         }
     }
-    
+   
     func stopRecording() {
         // Stop screen recording
         recorder.stopRecording()
@@ -122,21 +100,12 @@ class ScreenRecorderViewModel: ObservableObject {
         if isCameraEnabled {
             cameraRecorder.stopRecording()
         }
-        
-        // Stop cursor tracking if it was started
-        if isCursorTrackingEnabled {
-            cursorTracker.stopTracking()
-        }
     }
-    
-    func toggleCursorTracking() {
-        isCursorTrackingEnabled.toggle()
-    }
-    
+   
     func requestPermission() {
         recorder.requestPermission()
     }
-    
+   
     func checkMicrophonePermission() {
         recorder.requestMicrophonePermission { [weak self] granted in
             if granted {
@@ -147,7 +116,7 @@ class ScreenRecorderViewModel: ObservableObject {
             }
         }
     }
-    
+   
     func checkCameraPermission(completion: @escaping (Bool) -> Void) {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
@@ -165,7 +134,7 @@ class ScreenRecorderViewModel: ObservableObject {
             completion(false)
         }
     }
-    
+   
     func selectCamera(_ camera: AVCaptureDevice) {
         selectedCamera = camera
         cameraRecorder.selectCamera(camera)
@@ -173,7 +142,7 @@ class ScreenRecorderViewModel: ObservableObject {
         // Mark camera as not ready when selection changes
         isCameraReady = false
     }
-    
+   
     func toggleCamera() {
         if isCameraEnabled {
             isCameraEnabled = false
@@ -186,7 +155,7 @@ class ScreenRecorderViewModel: ObservableObject {
             }
         }
     }
-    
+   
     // Denoiser: remove background noise.
     func enhanceAudio() {
         guard let microphoneURL = microphoneURL, !isProcessingAudio, !isRecording else { return }
@@ -206,7 +175,7 @@ class ScreenRecorderViewModel: ObservableObject {
             }
         }
     }
-    
+   
     // MARK: - Private Methods
     private func setupDenoiser() {
         if let binaryURL = Bundle.main.url(forResource: "deep-filter-aarch64-apple-darwin", withExtension: "") {
@@ -215,7 +184,7 @@ class ScreenRecorderViewModel: ObservableObject {
             print("Error: Could not find denoiser binary in app bundle")
         }
     }
-    
+   
     private func setupBindings() {
         // Bind recorder state changes to our published properties
         recorder.$state
@@ -280,34 +249,7 @@ class ScreenRecorderViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
-    private func setupCursorTrackerBindings() {
-        // Bind cursor position updates
-        cursorTracker.$currentPosition
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] position in
-                self?.currentCursorPosition = position
-            }
-            .store(in: &cancellables)
-        
-        // Bind recording state
-        cursorTracker.$isRecording
-            .receive(on: DispatchQueue.main)
-            .sink { _ in
-                // We don't need to do anything here, but we might want
-                // to update UI elements based on cursor tracking state
-            }
-            .store(in: &cancellables)
-        
-        // Bind output URL
-        cursorTracker.$outputURL
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] url in
-                self?.cursorDataURL = url
-            }
-            .store(in: &cancellables)
-    }
-    
+   
     private func setupCameraBindings() {
         // Bind camera recording URL
         cameraRecorder.$recordingURL
@@ -344,7 +286,7 @@ class ScreenRecorderViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+   
     // Clean up resources when the view model is deallocated
     deinit {
         if isCameraEnabled {
@@ -352,3 +294,6 @@ class ScreenRecorderViewModel: ObservableObject {
         }
     }
 }
+
+
+

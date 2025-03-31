@@ -7,12 +7,37 @@
 
 import SwiftUI
 
+/* @main
+//struct ScreenRecordApp: App {
+//    var body: some Scene {
+//        WindowGroup {
+//            ContentView()
+//                .frame(minWidth: 480, minHeight: 300)
+//        }
+//        .windowStyle(.hiddenTitleBar)
+//        .windowResizability(.contentSize)
+//    }
+//}  */
+
+
+
 @main
-struct ScreenRecordApp: App {
+struct ScreenRecorderApp: App {
+    @State private var permissionsGranted = false
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .frame(minWidth: 480, minHeight: 300)
+            ZStack {
+                if permissionsGranted {
+                    ContentView()
+                } else {
+                    PermissionsView(permissionsGranted: $permissionsGranted)
+                }
+            }
+            .onAppear {
+                // Check if permissions were previously granted
+                permissionsGranted = UserDefaults.standard.bool(forKey: "permissionsGranted")
+            }
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)

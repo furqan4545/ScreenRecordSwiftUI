@@ -12,11 +12,16 @@ import Combine
 import Accelerate
 
 /// Model class that handles screen recording functionality
-class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
+class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     
     // MARK: - Enums
     enum StreamType: Int {
         case screen, window, systemAudio
+    }
+    
+    enum VideoQuality {
+        case hd    // Standard HD recording
+        case hdr   // High Dynamic Range recording
     }
     
     enum AudioQuality: Int {
@@ -60,6 +65,7 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
     private let audioEngine = AVAudioEngine()
     
     private var hasStartedSession = false
+    private var videoQuality: VideoQuality = .hdr // Default to HDR
     
     // Microphone writer
     private var micWriter: AVAssetWriter?
@@ -75,6 +81,18 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
     override init() {
         super.init()
         updateAudioSettings()
+    }
+    
+    // Initialize with specific video quality
+    init(videoQuality: VideoQuality = .hdr) {
+        self.videoQuality = videoQuality
+        super.init()
+        updateAudioSettings()
+    }
+    
+    // MARK: - Public Methods
+    func setVideoQuality(_ quality: VideoQuality) {
+        self.videoQuality = quality
     }
     
     // MARK: - Public Methods
@@ -105,6 +123,7 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
                     let isMain = display.displayID == CGMainDisplayID()
                     let displayName = "Display \(i+1)\(isMain ? " (Main)" : "")"
                     print(displayName)
+                    print("  - Width: \(display.width), Height: \(display.height)")
                 }
                 
                 self.state = .idle
@@ -137,6 +156,7 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
         streamType = .screen
         
         if let firstDisplay = availableContent?.displays.first {
+//        if let firstDisplay = availableContent?.displays.dropFirst().first {
             screen = firstDisplay
             
             let excludedApps = availableContent?.applications.filter {
@@ -185,7 +205,16 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
     }
     
     private func record(filter: SCContentFilter) async {
-        let conf = SCStreamConfiguration()
+//        let conf = SCStreamConfiguration()
+        let conf: SCStreamConfiguration
+        
+        if videoQuality == .hdr {
+            // For HDR, use the preset for HDR streaming
+            conf = SCStreamConfiguration(preset: .captureHDRStreamCanonicalDisplay)
+        } else {
+            // For HD, use a standard configuration
+            conf = SCStreamConfiguration()
+        }
         
         conf.width = Int(filter.contentRect.width) * Int(filter.pointPixelScale)
         conf.height = Int(filter.contentRect.height) * Int(filter.pointPixelScale)
@@ -236,7 +265,11 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd-HH-mm-ss"
             let dateString = dateFormatter.string(from: Date())
-            let url = downloadsDirectory.appendingPathComponent("Recording-\(dateString).\(fileEnding)") // for main video
+            
+            // Add HDR indicator to filename if recording in HDR
+            let qualityTag = videoQuality == .hdr ? "-HDR" : ""
+            let url = downloadsDirectory.appendingPathComponent("Recording\(qualityTag)-\(dateString).\(fileEnding)")
+//            let url = downloadsDirectory.appendingPathComponent("Recording-\(dateString).\(fileEnding)") // for main video
             let micUrl = downloadsDirectory.appendingPathComponent("Mic-Recording-\(dateString).wav") // for mic
             
             DispatchQueue.main.async {
@@ -250,19 +283,57 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
                 // Microphone writer setup (WAV format)
                 micWriter = try AVAssetWriter(outputURL: micUrl, fileType: .wav)
                 
-                let fpsMultiplier: Double = Double(60) / 8
-                let encoderMultiplier: Double = 0.9
-                let targetBitrate = (Double(conf.width) * Double(conf.height) * fpsMultiplier * encoderMultiplier)
-                let videoSettings: [String: Any] = [
-                    AVVideoCodecKey: AVVideoCodecType.hevc,
-                    AVVideoWidthKey: conf.width,
-                    AVVideoHeightKey: conf.height,
-                    AVVideoCompressionPropertiesKey: [
-                        AVVideoAverageBitRateKey: targetBitrate,
-                        AVVideoExpectedSourceFrameRateKey: 60
-                    ] as [String: Any]
-                ]
+                // Configure video settings based on quality selection
+                var videoSettings: [String: Any]
                 
+                if videoQuality == .hdr {
+                    // HDR-specific settings (10-bit HEVC)
+                    let fpsMultiplier: Double = Double(60) / 8
+                    let encoderMultiplier: Double = 1.2 // Higher for HDR content
+                    let targetBitrate = (Double(conf.width) * Double(conf.height) * fpsMultiplier * encoderMultiplier)
+                    
+                    let compressionProperties: [String: Any] = [
+                        AVVideoAverageBitRateKey: targetBitrate,
+                        AVVideoExpectedSourceFrameRateKey: 60,
+                        AVVideoMaxKeyFrameIntervalKey: 60, // One keyframe per second
+                        AVVideoProfileLevelKey: "HEVC_Main10_AutoLevel",
+                        AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_2020,
+                        AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_2100_HLG, // or AVVideoTransferFunction_SMPTE_ST_2084_PQ
+                        AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_2020
+                    ]
+                    
+                    videoSettings = [
+                        AVVideoCodecKey: AVVideoCodecType.hevc,
+                        AVVideoWidthKey: conf.width,
+                        AVVideoHeightKey: conf.height,
+                        AVVideoCompressionPropertiesKey: compressionProperties,
+                        // Set the pixel format to 10-bit for HDR
+                        AVVideoPixelAspectRatioKey: [
+                            AVVideoPixelAspectRatioHorizontalSpacingKey: 1,
+                            AVVideoPixelAspectRatioVerticalSpacingKey: 1
+                        ]
+                    ]
+                } else {
+                    // Standard HD settings (8-bit H.264)
+                    let fpsMultiplier: Double = Double(60) / 8
+                    let encoderMultiplier: Double = 0.9
+                    let targetBitrate = (Double(conf.width) * Double(conf.height) * fpsMultiplier * encoderMultiplier)
+                    
+                    videoSettings = [
+                        AVVideoCodecKey: AVVideoCodecType.hevc, // Still using HEVC but with standard settings
+                        AVVideoWidthKey: conf.width,
+                        AVVideoHeightKey: conf.height,
+                        AVVideoCompressionPropertiesKey: [
+                            AVVideoAverageBitRateKey: targetBitrate,
+                            AVVideoExpectedSourceFrameRateKey: 60
+                        ] as [String: Any],
+                        AVVideoPixelAspectRatioKey: [
+                            AVVideoPixelAspectRatioHorizontalSpacingKey: 1,
+                            AVVideoPixelAspectRatioVerticalSpacingKey: 1
+                        ]
+                    ]
+                }
+
                 // for mic
                 // Set up WAV-specific audio settings for microphone
                 let micAudioSettings: [String: Any] = [
@@ -284,6 +355,20 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
                 vwInput.expectsMediaDataInRealTime = true
                 awInput.expectsMediaDataInRealTime = true
                 micWriterInput?.expectsMediaDataInRealTime = true
+                
+                // For HDR, make sure we handle any properties in the source
+                if videoQuality == .hdr {
+                    vwInput.performsMultiPassEncodingIfSupported = true
+                    
+                    // Instead, you can use these relevant properties for HDR:
+                    vwInput.mediaTimeScale = 60 // Set time scale for precision
+                    
+                    // For HDR content, we might want to ensure highest quality encoding
+                    if #available(macOS 10.15, *) {
+                        vwInput.preferredMediaChunkAlignment = 512 * 1024 // 512KB chunks for optimization
+                        vwInput.preferredMediaChunkDuration = CMTime(value: 1, timescale: 2) // 0.5 second chunks
+                    }
+                }
                 
                 if vW!.canAdd(vwInput) {
                     vW!.add(vwInput)
@@ -330,7 +415,7 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
                         
                         if let micWriterInput = self.micWriterInput,
                            micWriterInput.isReadyForMoreMediaData,
-                           let sampleBuffer = buffer.asScreenRecorderWithSMicSampleBuffer {
+                           let sampleBuffer = buffer.asScreenRecorderWithHDRSampleBuffer {
                             micWriterInput.append(sampleBuffer)
                         }
                     }
@@ -393,6 +478,7 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
     }
     
     // MARK: - SCStreamOutput Methods
+    // MARK: - SCStreamOutput Methods
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
         guard sampleBuffer.isValid else { return }
         
@@ -404,6 +490,36 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
             guard let statusRawValue = attachments[SCStreamFrameInfo.status] as? Int,
                   let status = SCFrameStatus(rawValue: statusRawValue),
                   status == .complete else { return }
+            
+            // For HDR recording, check if the buffer contains HDR metadata
+            if videoQuality == .hdr {
+                // Log HDR-specific information if available
+                if let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) {
+                    if !hasStartedSession {
+                        // Get video format extension dictionary with color information
+                        let extensionDictionary = CMFormatDescriptionGetExtensions(formatDescription) as Dictionary?
+                        let videoDict = extensionDictionary?[kCMFormatDescriptionExtension_FormatName] as? String
+                        
+                        // Access the color space extensions
+                        if let colorAttachments = CMFormatDescriptionGetExtension(
+                            formatDescription,
+                            extensionKey: kCMFormatDescriptionExtension_ColorPrimaries
+                        ) {
+                            print("Recording with color primaries: \(colorAttachments)")
+                        }
+                        
+                        if let transferFunction = CMFormatDescriptionGetExtension(
+                            formatDescription,
+                            extensionKey: kCMFormatDescriptionExtension_TransferFunction
+                        ) {
+                            print("Recording with transfer function: \(transferFunction)")
+                        }
+                        
+                        // More basic approach, just print the format name
+                        print("Recording with format: \(videoDict ?? "Unknown")")
+                    }
+                }
+            }
             
             // Start the session only once at the first valid frame.
             if !hasStartedSession {
@@ -440,9 +556,10 @@ class ScreenRecorderWithSepMic: NSObject, SCStreamDelegate, SCStreamOutput {
     }
 }
 
+
 // MARK: - Buffer Extensions
 extension AVAudioPCMBuffer {
-    var asScreenRecorderWithSMicSampleBuffer: CMSampleBuffer? {
+    var asScreenRecorderWithHDRSampleBuffer: CMSampleBuffer? {
         let asbd = self.format.streamDescription
         var sampleBuffer: CMSampleBuffer? = nil
         var format: CMFormatDescription? = nil
@@ -490,3 +607,4 @@ extension AVAudioPCMBuffer {
         return sampleBuffer
     }
 }
+

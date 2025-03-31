@@ -112,15 +112,33 @@ class InputTracker {
         }
     }
     
-    /// Main method that runs input tracking
-    private func runInputTracking() {
-        // Request accessibility permissions if needed
+    private func checkAccessibilityPermissions() -> Bool {
+        // Check if accessibility is enabled
         if !AXIsProcessTrusted() {
+            // Show the accessibility permission dialog
             let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
             AXIsProcessTrustedWithOptions(options as CFDictionary)
             
+            // Print instructions for the user
+            print("Accessibility permissions are required to track cursor and keyboard input.")
+            print("Please grant permission in System Settings → Privacy & Security → Accessibility")
+            
+            // Return false as we don't have permission yet
+            return false
+        }
+        
+        return true
+    }
+
+    
+    /// Main method that runs input tracking
+    private func runInputTracking() {
+        // Request accessibility permissions if needed
+        if !checkAccessibilityPermissions() {
             DispatchQueue.main.async { [weak self] in
-                self?.state = .error(NSError(domain: "InputTracker", code: 1, userInfo: [NSLocalizedDescriptionKey: "Accessibility permissions required for input tracking"]))
+                self?.state = .error(NSError(domain: "InputTracker",
+                                            code: 1,
+                                            userInfo: [NSLocalizedDescriptionKey: "Accessibility permissions required for input tracking"]))
             }
             return
         }

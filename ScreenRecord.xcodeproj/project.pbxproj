@@ -10,9 +10,22 @@
 		ED4EC1E12D90769900EC17DB /* ScreenRecord.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenRecord.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		ED4EC2392D935DF300EC17DB /* Exceptions for "ScreenRecord" folder in "ScreenRecord" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = ED4EC1E02D90769900EC17DB /* ScreenRecord */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		ED4EC1E32D90769900EC17DB /* ScreenRecord */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				ED4EC2392D935DF300EC17DB /* Exceptions for "ScreenRecord" folder in "ScreenRecord" target */,
+			);
 			path = ScreenRecord;
 			sourceTree = "<group>";
 		};
@@ -257,6 +270,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ScreenRecord/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Need to access camera for recording overlay";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "This app needs access to your microphone to record audio along with screen capture.";
@@ -264,6 +278,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ScreenRecord.ScreenRecord;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -284,6 +299,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"ScreenRecord/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ScreenRecord/Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Need to access camera for recording overlay";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "This app needs access to your microphone to record audio along with screen capture.";
@@ -291,6 +307,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ScreenRecord.ScreenRecord;
 				PRODUCT_NAME = "$(TARGET_NAME)";
