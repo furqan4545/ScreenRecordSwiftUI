@@ -439,8 +439,8 @@ class PollingCursorAndKeyboardTracker {
         let (location, cursorInfo) = await MainActor.run {
             let location = NSEvent.mouseLocation
             
-            let currentCursor = NSCursor.current
-            let cursorType = identifyCursorType(currentCursor)
+            let currentCursor = NSCursor.currentSystem
+            let cursorType = identifyCursorType(currentCursor ?? NSCursor.current)
             let isMoving = isCursorMoving(location)
             let pressedButtons = NSEvent.pressedMouseButtons
             
