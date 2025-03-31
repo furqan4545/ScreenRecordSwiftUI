@@ -104,6 +104,22 @@ struct ContentView: View {
                 }
                 .padding(.leading, 20)
             }
+            // Add HDR toggle section here
+            Divider()
+                .padding(.vertical, 5)
+            
+            HStack {
+                Toggle("Enable HDR Recording", isOn: $viewModel.isHDREnabled)
+                    .toggleStyle(.switch)
+                    .disabled(viewModel.isRecording || viewModel.isPreparing)
+                
+                if viewModel.isHDREnabled {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.caption)
+                }
+            }
+            .help("Records in High Dynamic Range for better color and brightness")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
@@ -239,7 +255,15 @@ struct ContentView: View {
                     .font(.callout)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                
+                if url.lastPathComponent.contains("-HDR") {
+                    Text("HDR")
+                        .font(.caption)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color.yellow.opacity(0.3))
+                        .cornerRadius(4)
+                }
+                    
                 Spacer()
                 
                 Button {

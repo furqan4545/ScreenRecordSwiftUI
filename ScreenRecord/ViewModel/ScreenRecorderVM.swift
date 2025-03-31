@@ -22,6 +22,7 @@ class ScreenRecorderViewModel: ObservableObject {
     @Published var displays: [SCDisplay] = []
     @Published var isProcessingAudio: Bool = false
     @Published var showRecordingInfo: Bool = false
+    @Published var isHDREnabled: Bool = true // Default to HDR enabled
    
     // Camera related properties
     @Published var isCameraEnabled: Bool = false {
@@ -52,6 +53,9 @@ class ScreenRecorderViewModel: ObservableObject {
         setupBindings()
         requestPermission()
         setupCameraBindings()
+        
+        // Initialize the recorder with the default HDR setting
+        setHDRMode(isHDREnabled)
     }
     
     // MARK: - Public Methods
@@ -75,6 +79,9 @@ class ScreenRecorderViewModel: ObservableObject {
     }
    
     private func performRecording() {
+        // Ensure HDR setting is applied right before recording
+        setHDRMode(isHDREnabled)
+        
         // Start camera recording first if enabled
         if isCameraEnabled && isCameraReady {
             cameraRecorder.startRecording()
@@ -134,7 +141,12 @@ class ScreenRecorderViewModel: ObservableObject {
             completion(false)
         }
     }
-   
+
+    func setHDRMode(_ enabled: Bool) {
+        isHDREnabled = enabled
+        recorder.setVideoQuality(enabled ? .hdr : .hd)
+    }
+    
     func selectCamera(_ camera: AVCaptureDevice) {
         selectedCamera = camera
         cameraRecorder.selectCamera(camera)
@@ -248,6 +260,13 @@ class ScreenRecorderViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+        
+        $isHDREnabled
+            .dropFirst() // Skip initial value to avoid redundant updates
+            .sink { [weak self] enabled in
+                self?.recorder.setVideoQuality(enabled ? .hdr : .hd)
+            }
+            .store(in: &cancellables)
     }
    
     private func setupCameraBindings() {
@@ -292,6 +311,10 @@ class ScreenRecorderViewModel: ObservableObject {
         if isCameraEnabled {
             cameraRecorder.releaseCamera()
         }
+        
+        // Cancel all subscriptions
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
     }
 }
 
