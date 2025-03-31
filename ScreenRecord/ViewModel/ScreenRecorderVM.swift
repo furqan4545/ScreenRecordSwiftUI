@@ -98,19 +98,21 @@ class ScreenRecorderViewModel: ObservableObject {
                 
                 // Start screen recording after the delay
                 self.recorder.startRecording()
-                startCursorTrackingIfEnabled()
+                
+                startCursorTrackingIfEnabled() // cursor tracking start
             }
         } else {
             // If no camera, start screen recording immediately
             recorder.startRecording()
-            startCursorTrackingIfEnabled()
+            
+            startCursorTrackingIfEnabled() // cursor tracking start
         }
     }
    
     func stopRecording() {
         // Stop screen recording
         recorder.stopRecording()
-        stopCursorTracking()
+        stopCursorTracking()  // cursor tracking stop
         
         // Stop camera recording if it was started
         if isCameraEnabled {
