@@ -23,6 +23,8 @@ class ScreenRecorderViewModel: ObservableObject {
     @Published var isProcessingAudio: Bool = false
     @Published var showRecordingInfo: Bool = false
     @Published var isHDREnabled: Bool = true // Default to HDR enabled
+    
+    @Published var isCursorTrackingEnabled: Bool = true
    
     // Camera related properties
     @Published var isCameraEnabled: Bool = false {
@@ -46,6 +48,8 @@ class ScreenRecorderViewModel: ObservableObject {
     private let cameraRecorder = CameraRecorder()
     private var cancellables = Set<AnyCancellable>()
     private var denoiser: AudioDenoiser?
+    
+    private var cursorTracker: PollingCursorTracker?
    
     // MARK: - Initialization
     init() {
@@ -56,6 +60,8 @@ class ScreenRecorderViewModel: ObservableObject {
         
         // Initialize the recorder with the default HDR setting
         setHDRMode(isHDREnabled)
+        
+        setupCursorTracking()
     }
     
     // MARK: - Public Methods
@@ -92,16 +98,19 @@ class ScreenRecorderViewModel: ObservableObject {
                 
                 // Start screen recording after the delay
                 self.recorder.startRecording()
+                startCursorTrackingIfEnabled()
             }
         } else {
             // If no camera, start screen recording immediately
             recorder.startRecording()
+            startCursorTrackingIfEnabled()
         }
     }
    
     func stopRecording() {
         // Stop screen recording
         recorder.stopRecording()
+        stopCursorTracking()
         
         // Stop camera recording if it was started
         if isCameraEnabled {
@@ -145,6 +154,34 @@ class ScreenRecorderViewModel: ObservableObject {
     func setHDRMode(_ enabled: Bool) {
         isHDREnabled = enabled
         recorder.setVideoQuality(enabled ? .hdr : .hd)
+    }
+    
+    // Call this method in your init() function
+    func setupCursorTracking() {
+        // Initialize the cursor tracker
+        cursorTracker = PollingCursorTracker(fps: 30)
+    }
+    
+    // Start cursor tracking
+    private func startCursorTrackingIfEnabled() {
+        if isCursorTrackingEnabled {
+            // Use Task to ensure this doesn't block recording
+            Task.detached(priority: .background) {
+                await MainActor.run {
+                    self.cursorTracker?.startTracking()
+                }
+            }
+        }
+    }
+
+    // Stop cursor tracking
+    private func stopCursorTracking() {
+        // Use Task to ensure this doesn't block stopping recording
+        Task.detached(priority: .background) {
+            await MainActor.run {
+                self.cursorTracker?.stopTracking()
+            }
+        }
     }
     
     func selectCamera(_ camera: AVCaptureDevice) {

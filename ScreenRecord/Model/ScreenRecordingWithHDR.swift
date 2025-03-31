@@ -41,8 +41,8 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         static func == (lhs: RecorderState, rhs: RecorderState) -> Bool {
             switch (lhs, rhs) {
             case (.idle, .idle),
-                 (.preparing, .preparing),
-                 (.recording, .recording):
+                (.preparing, .preparing),
+                (.recording, .recording):
                 return true
             case (.error(let lhsError), .error(let rhsError)):
                 return lhsError.localizedDescription == rhsError.localizedDescription
@@ -66,6 +66,9 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     
     private var hasStartedSession = false
     private var videoQuality: VideoQuality = .hdr // Default to HDR
+    
+    // buffer queue
+    private let sampleBufferQueue = DispatchQueue(label: "com.screenrecorder.sampleBufferQueue")
     
     // Microphone writer
     private var micWriter: AVAssetWriter?
@@ -156,7 +159,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         streamType = .screen
         
         if let firstDisplay = availableContent?.displays.first {
-//        if let firstDisplay = availableContent?.displays.dropFirst().first {
+            //        if let firstDisplay = availableContent?.displays.dropFirst().first {
             screen = firstDisplay
             
             let excludedApps = availableContent?.applications.filter {
@@ -164,8 +167,8 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
             } ?? []
             
             filter = SCContentFilter(display: screen ?? firstDisplay,
-                                       excludingApplications: excludedApps,
-                                       exceptingWindows: [])
+                                     excludingApplications: excludedApps,
+                                     exceptingWindows: [])
             
             Task {
                 if let filter = filter {
@@ -194,7 +197,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         streamType = nil
         state = .idle
     }
-
+    
     
     
     // MARK: - Private Methods
@@ -205,7 +208,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     }
     
     private func record(filter: SCContentFilter) async {
-//        let conf = SCStreamConfiguration()
+        //        let conf = SCStreamConfiguration()
         let conf: SCStreamConfiguration
         
         if videoQuality == .hdr {
@@ -221,7 +224,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         conf.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(60))
         conf.showsCursor = true
         conf.capturesAudio = true
-
+        
         ///  test
         conf.scalesToFit = true
         conf.queueDepth = 8
@@ -269,7 +272,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
             // Add HDR indicator to filename if recording in HDR
             let qualityTag = videoQuality == .hdr ? "-HDR" : ""
             let url = downloadsDirectory.appendingPathComponent("Recording\(qualityTag)-\(dateString).\(fileEnding)")
-//            let url = downloadsDirectory.appendingPathComponent("Recording-\(dateString).\(fileEnding)") // for main video
+            //            let url = downloadsDirectory.appendingPathComponent("Recording-\(dateString).\(fileEnding)") // for main video
             let micUrl = downloadsDirectory.appendingPathComponent("Mic-Recording-\(dateString).wav") // for mic
             
             DispatchQueue.main.async {
@@ -333,7 +336,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
                         ]
                     ]
                 }
-
+                
                 // for mic
                 // Set up WAV-specific audio settings for microphone
                 let micAudioSettings: [String: Any] = [
@@ -432,7 +435,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
                 }
                 
                 vW!.startWriting()
-                    
+                
             } catch {
                 print("Error initializing video writer: \(error)")
                 DispatchQueue.main.async {
@@ -443,7 +446,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
             print("Error: Downloads directory not found.")
             DispatchQueue.main.async {
                 self.state = .error(NSError(domain: "ScreenRecorderError", code: 3,
-                                        userInfo: ["message": "Downloads directory not found"]))
+                                            userInfo: ["message": "Downloads directory not found"]))
             }
         }
     }
@@ -477,70 +480,147 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         dispatchGroup.wait()
     }
     
-    // MARK: - SCStreamOutput Methods
+    //    // MARK: - SCStreamOutput Methods
+    //    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
+    //        guard sampleBuffer.isValid else { return }
+    //
+    //        switch outputType {
+    //        case .screen:
+    //            guard let attachmentsArray = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer,
+    //                                                                                 createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
+    //                  let attachments = attachmentsArray.first else { return }
+    //            guard let statusRawValue = attachments[SCStreamFrameInfo.status] as? Int,
+    //                  let status = SCFrameStatus(rawValue: statusRawValue),
+    //                  status == .complete else { return }
+    //
+    //            // For HDR recording, check if the buffer contains HDR metadata
+    //            if videoQuality == .hdr {
+    //                // Log HDR-specific information if available
+    //                if let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) {
+    //                    if !hasStartedSession {
+    //                        // Get video format extension dictionary with color information
+    //                        let extensionDictionary = CMFormatDescriptionGetExtensions(formatDescription) as Dictionary?
+    //                        let videoDict = extensionDictionary?[kCMFormatDescriptionExtension_FormatName] as? String
+    //
+    //                        // Access the color space extensions
+    //                        if let colorAttachments = CMFormatDescriptionGetExtension(
+    //                            formatDescription,
+    //                            extensionKey: kCMFormatDescriptionExtension_ColorPrimaries
+    //                        ) {
+    //                            print("Recording with color primaries: \(colorAttachments)")
+    //                        }
+    //
+    //                        if let transferFunction = CMFormatDescriptionGetExtension(
+    //                            formatDescription,
+    //                            extensionKey: kCMFormatDescriptionExtension_TransferFunction
+    //                        ) {
+    //                            print("Recording with transfer function: \(transferFunction)")
+    //                        }
+    //
+    //                        // More basic approach, just print the format name
+    //                        print("Recording with format: \(videoDict ?? "Unknown")")
+    //                    }
+    //                }
+    //            }
+    //
+    //            // Start the session only once at the first valid frame.
+    //            if !hasStartedSession {
+    //                if let vW = vW, vW.status == .writing {
+    //                    let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+    //                    vW.startSession(atSourceTime: timestamp)
+    //                    hasStartedSession = true
+    //                }
+    //            }
+    //
+    //            if vwInput.isReadyForMoreMediaData {
+    //                vwInput.append(sampleBuffer)
+    //            }
+    //
+    //        case .audio:
+    //            if awInput.isReadyForMoreMediaData {
+    //                awInput.append(sampleBuffer)
+    //            }
+    //
+    //        default:
+    //            assertionFailure("Unknown stream type")
+    //        }
+    //    }
+    
     // MARK: - SCStreamOutput Methods
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
         guard sampleBuffer.isValid else { return }
         
-        switch outputType {
-        case .screen:
-            guard let attachmentsArray = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer,
-                                                                                 createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
-                  let attachments = attachmentsArray.first else { return }
-            guard let statusRawValue = attachments[SCStreamFrameInfo.status] as? Int,
-                  let status = SCFrameStatus(rawValue: statusRawValue),
-                  status == .complete else { return }
+        // Process sample buffer on a serial queue to avoid race conditions
+        sampleBufferQueue.async { [weak self] in
+            guard let self = self else { return }
             
-            // For HDR recording, check if the buffer contains HDR metadata
-            if videoQuality == .hdr {
-                // Log HDR-specific information if available
-                if let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) {
-                    if !hasStartedSession {
-                        // Get video format extension dictionary with color information
-                        let extensionDictionary = CMFormatDescriptionGetExtensions(formatDescription) as Dictionary?
-                        let videoDict = extensionDictionary?[kCMFormatDescriptionExtension_FormatName] as? String
-                        
-                        // Access the color space extensions
-                        if let colorAttachments = CMFormatDescriptionGetExtension(
-                            formatDescription,
-                            extensionKey: kCMFormatDescriptionExtension_ColorPrimaries
-                        ) {
-                            print("Recording with color primaries: \(colorAttachments)")
+            switch outputType {
+            case .screen:
+                guard let attachmentsArray = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer,
+                                                                                     createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
+                      let attachments = attachmentsArray.first else { return }
+                guard let statusRawValue = attachments[SCStreamFrameInfo.status] as? Int,
+                      let status = SCFrameStatus(rawValue: statusRawValue),
+                      status == .complete else { return }
+                
+                // HDR metadata logging (no change needed)
+                if self.videoQuality == .hdr {
+                    if let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) {
+                        if !self.hasStartedSession {
+                            // Get video format extension dictionary with color information
+                            let extensionDictionary = CMFormatDescriptionGetExtensions(formatDescription) as Dictionary?
+                            let videoDict = extensionDictionary?[kCMFormatDescriptionExtension_FormatName] as? String
+                            
+                            // Access the color space extensions
+                            if let colorAttachments = CMFormatDescriptionGetExtension(
+                                formatDescription,
+                                extensionKey: kCMFormatDescriptionExtension_ColorPrimaries
+                            ) {
+                                print("Recording with color primaries: \(colorAttachments)")
+                            }
+                            
+                            if let transferFunction = CMFormatDescriptionGetExtension(
+                                formatDescription,
+                                extensionKey: kCMFormatDescriptionExtension_TransferFunction
+                            ) {
+                                print("Recording with transfer function: \(transferFunction)")
+                            }
+                            
+                            // More basic approach, just print the format name
+                            print("Recording with format: \(videoDict ?? "Unknown")")
                         }
-                        
-                        if let transferFunction = CMFormatDescriptionGetExtension(
-                            formatDescription,
-                            extensionKey: kCMFormatDescriptionExtension_TransferFunction
-                        ) {
-                            print("Recording with transfer function: \(transferFunction)")
-                        }
-                        
-                        // More basic approach, just print the format name
-                        print("Recording with format: \(videoDict ?? "Unknown")")
                     }
                 }
-            }
-            
-            // Start the session only once at the first valid frame.
-            if !hasStartedSession {
-                if let vW = vW, vW.status == .writing {
-                    let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-                    vW.startSession(atSourceTime: timestamp)
-                    hasStartedSession = true
+                
+                // Start the session only once at the first valid frame
+                if !self.hasStartedSession {
+                    if let vW = self.vW, vW.status == .writing {
+                        let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                        vW.startSession(atSourceTime: timestamp)
+                        self.hasStartedSession = true
+                        print("Started AVAssetWriter session at \(timestamp)")
+                        
+                        // Append the first frame after starting the session
+                        if self.vwInput.isReadyForMoreMediaData {
+                            self.vwInput.append(sampleBuffer)
+                        }
+                    }
+                } else {
+                    // Only append if session is already started
+                    if self.vwInput.isReadyForMoreMediaData {
+                        self.vwInput.append(sampleBuffer)
+                    }
                 }
+                
+            case .audio:
+                // Only append audio after session has started
+                if self.hasStartedSession && self.awInput.isReadyForMoreMediaData {
+                    self.awInput.append(sampleBuffer)
+                }
+                
+            default:
+                assertionFailure("Unknown stream type")
             }
-            
-            if vwInput.isReadyForMoreMediaData {
-                vwInput.append(sampleBuffer)
-            }
-            
-        case .audio:
-            if awInput.isReadyForMoreMediaData {
-                awInput.append(sampleBuffer)
-            }
-            
-        default:
-            assertionFailure("Unknown stream type")
         }
     }
     
