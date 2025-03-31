@@ -165,12 +165,28 @@ class ScreenRecorderViewModel: ObservableObject {
     }
     
     // Start cursor tracking
+//    private func startCursorTrackingIfEnabled() {
+//        if isCursorTrackingEnabled {
+//            // Use Task to ensure this doesn't block recording
+//            Task.detached(priority: .background) {
+//                await MainActor.run {
+//                    self.cursorTracker?.startTracking()
+//                }
+//            }
+//        }
+//    }
+    
+    // Start cursor tracking
     private func startCursorTrackingIfEnabled() {
         if isCursorTrackingEnabled {
             // Use Task to ensure this doesn't block recording
             Task.detached(priority: .background) {
                 await MainActor.run {
-                    self.cursorTracker?.startTracking()
+                    // Get the video dimensions from the recorder
+//                    let videoWidth = self.recorder.currentWidth // You'll need to add these properties
+//                    let videoHeight = self.recorder.currentHeight
+                    
+                    self.cursorTracker?.startTracking(videoWidth: 1900, videoHeight: 1200)
                 }
             }
         }
