@@ -24,7 +24,7 @@ class ScreenRecorderViewModel: ObservableObject {
     @Published var showRecordingInfo: Bool = false
     @Published var isHDREnabled: Bool = true // Default to HDR enabled
     
-    @Published var isCursorTrackingEnabled: Bool = true
+    @Published var isInputTrackingEnabled: Bool = true
    
     // Camera related properties
     @Published var isCameraEnabled: Bool = false {
@@ -49,7 +49,8 @@ class ScreenRecorderViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var denoiser: AudioDenoiser?
     
-    private var cursorTracker: PollingCursorTracker?
+//    private var cursorTracker: PollingCursorTracker?
+    private var inputTracker: PollingCursorAndKeyboardTracker?
    
     // MARK: - Initialization
     init() {
@@ -99,20 +100,20 @@ class ScreenRecorderViewModel: ObservableObject {
                 // Start screen recording after the delay
                 self.recorder.startRecording()
                 
-                startCursorTrackingIfEnabled() // cursor tracking start
+                startInputTrackingIfEnabled() // cursor tracking start
             }
         } else {
             // If no camera, start screen recording immediately
             recorder.startRecording()
             
-            startCursorTrackingIfEnabled() // cursor tracking start
+            startInputTrackingIfEnabled() // cursor tracking start
         }
     }
    
     func stopRecording() {
         // Stop screen recording
         recorder.stopRecording()
-        stopCursorTracking()  // cursor tracking stop
+        stopInputTracking()  // cursor tracking stop
         
         // Stop camera recording if it was started
         if isCameraEnabled {
@@ -161,24 +162,13 @@ class ScreenRecorderViewModel: ObservableObject {
     // Call this method in your init() function
     func setupCursorTracking() {
         // Initialize the cursor tracker
-        cursorTracker = PollingCursorTracker(fps: 30)
+//        cursorTracker = PollingCursorTracker(fps: 30)
+        inputTracker = PollingCursorAndKeyboardTracker(fps: 30, trackKeyboard: true)
     }
     
     // Start cursor tracking
-//    private func startCursorTrackingIfEnabled() {
-//        if isCursorTrackingEnabled {
-//            // Use Task to ensure this doesn't block recording
-//            Task.detached(priority: .background) {
-//                await MainActor.run {
-//                    self.cursorTracker?.startTracking()
-//                }
-//            }
-//        }
-//    }
-    
-    // Start cursor tracking
-    private func startCursorTrackingIfEnabled() {
-        if isCursorTrackingEnabled {
+    private func startInputTrackingIfEnabled() {
+        if isInputTrackingEnabled {
             // Use Task to ensure this doesn't block recording
             Task.detached(priority: .background) {
                 await MainActor.run {
@@ -186,18 +176,18 @@ class ScreenRecorderViewModel: ObservableObject {
 //                    let videoWidth = self.recorder.currentWidth // You'll need to add these properties
 //                    let videoHeight = self.recorder.currentHeight
                     
-                    self.cursorTracker?.startTracking(videoWidth: 1900, videoHeight: 1200)
+                    self.inputTracker?.startTracking(videoWidth: 1900, videoHeight: 1200)
                 }
             }
         }
     }
 
     // Stop cursor tracking
-    private func stopCursorTracking() {
+    private func stopInputTracking() {
         // Use Task to ensure this doesn't block stopping recording
         Task.detached(priority: .background) {
             await MainActor.run {
-                self.cursorTracker?.stopTracking()
+                self.inputTracker?.stopTracking()
             }
         }
     }
