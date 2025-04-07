@@ -6,7 +6,6 @@
 ////
 
 
-
 import SwiftUI
 import ScreenCaptureKit
 import AVFoundation
@@ -14,7 +13,9 @@ import AVFoundation
 struct ContentView: View {
     @StateObject private var viewModel = ScreenRecorderViewModel()
     
-    @Environment(\.openWindow) var openWindow
+    // MARK: Display Manager for plotting overlay windows.
+    @Environment(\.openWindow) private var openWindow
+    
     
     var body: some View {
         VStack(spacing: 20) {
@@ -127,13 +128,16 @@ struct ContentView: View {
             Divider()
                 .padding(.vertical, 5)
             
-//            Button("Open Second View") {
-//                coordinator.openNewWindow()
-//            }
-//            .disabled(coordinator.isSecondWindowVisible)
-            Button("Open Second View") {
-                openWindow(id: "SecondWindow")
+            Button("Select Display") {
+                // Determine the number of screens available
+                let screens = NSScreen.screens
+                let count = min(screens.count, 6)
+                for index in 0..<count {
+                    // Opens a dynamic window with the screen index as its value.
+                    openWindow(id: "dynamic-display", value: index)
+                }
             }
+            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)

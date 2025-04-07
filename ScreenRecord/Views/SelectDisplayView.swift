@@ -11,41 +11,36 @@ import SwiftUI
 import AppKit
 
 struct SelectDisplayView: View {
-    @ObservedObject var viewModel: SelectDisplayViewModel
+    let screenID: Int
     @State private var nsWindow: NSWindow?
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("This is the second view")
+            Text("Display \(screenID + 1)")
                 .font(.title)
+                .foregroundColor(.white)
             
-            // Your custom close button.
+            // Custom close button to close this overlay window.
             Button("Close") {
                 nsWindow?.close()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-        // Use WindowAccessor to capture the underlying NSWindow and then configure it.
         .background(WindowAccessor { window in
             if let window = window, window != self.nsWindow {
                 self.nsWindow = window
-
-                // Remove standard window chrome.
-                window.styleMask = [.borderless]
-                
-                // Set the window to cover the entire main screen.
-                if let screenFrame = NSScreen.main?.frame {
-                    window.setFrame(screenFrame, display: true, animate: false)
+                let screens = NSScreen.screens
+                if screens.indices.contains(screenID) {
+                    // Configure the window:
+                    window.styleMask = [.borderless] // Remove standard chrome.
+                    let targetFrame = screens[screenID].frame
+                    window.setFrame(targetFrame, display: true, animate: false)
+                    window.alphaValue = 0.6  // Semi-transparent.
+                    window.level = .screenSaver // Ensure it appears on top.
+                    print("Overlay window for display \(screenID + 1) on \(screens[screenID].localizedName)")
+                } else {
+                    print("No screen available for index \(screenID)")
                 }
-                
-                // Make the window semi-transparent.
-                window.alphaValue = 0.8
-                
-                // Set the window level high enough to cover the menu bar and dock.
-                window.level = NSWindow.Level.screenSaver
-
-                print("Window set to full screen floating with transparency")
             }
         })
     }

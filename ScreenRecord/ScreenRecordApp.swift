@@ -4,26 +4,14 @@
 //
 //  Created by Furqan Ali on 3/24/25.
 //
+//
 
 import SwiftUI
-
-/* @main
-//struct ScreenRecordApp: App {
-//    var body: some Scene {
-//        WindowGroup {
-//            ContentView()
-//                .frame(minWidth: 480, minHeight: 300)
-//        }
-//        .windowStyle(.hiddenTitleBar)
-//        .windowResizability(.contentSize)
-//    }
-//}  */
-
-
 
 @main
 struct ScreenRecorderApp: App {
     @State private var permissionsGranted = false
+    @State private var showDisplayOverlays = false
     
     var body: some Scene {
         WindowGroup {
@@ -42,10 +30,20 @@ struct ScreenRecorderApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
         
-        // Secondary window scene with an identifier "SecondWindow"
-        WindowGroup("Select Display", id: "SecondWindow") {
-            // Pass a fresh view model for the second window.
-            SelectDisplayView(viewModel: SelectDisplayViewModel())
+        // Register the dynamic window scene.
+        dynamicDisplayScene
+    }
+}
+
+
+extension ScreenRecorderApp {
+    @SceneBuilder
+    var dynamicDisplayScene: some Scene {
+        // The dynamic window group receives an Int (screen index)
+        WindowGroup(id: "dynamic-display", for: Int.self) { $screenID in
+            if let screenID = screenID {
+                SelectDisplayView(screenID: screenID)
+            }
         }
     }
 }
