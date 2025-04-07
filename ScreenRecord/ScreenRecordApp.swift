@@ -41,5 +41,11 @@ struct ScreenRecorderApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
+        
+        // Secondary window scene with an identifier "SecondWindow"
+        WindowGroup("Select Display", id: "SecondWindow") {
+            // Pass a fresh view model for the second window.
+            SelectDisplayView(viewModel: SelectDisplayViewModel())
+        }
     }
 }

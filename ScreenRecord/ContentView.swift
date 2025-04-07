@@ -14,6 +14,8 @@ import AVFoundation
 struct ContentView: View {
     @StateObject private var viewModel = ScreenRecorderViewModel()
     
+    @Environment(\.openWindow) var openWindow
+    
     var body: some View {
         VStack(spacing: 20) {
             title
@@ -120,6 +122,18 @@ struct ContentView: View {
                 }
             }
             .help("Records in High Dynamic Range for better color and brightness")
+            
+            // Add Display Overlay button
+            Divider()
+                .padding(.vertical, 5)
+            
+//            Button("Open Second View") {
+//                coordinator.openNewWindow()
+//            }
+//            .disabled(coordinator.isSecondWindowVisible)
+            Button("Open Second View") {
+                openWindow(id: "SecondWindow")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)

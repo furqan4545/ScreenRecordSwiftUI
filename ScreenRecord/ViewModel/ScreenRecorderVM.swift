@@ -42,15 +42,19 @@ class ScreenRecorderViewModel: ObservableObject {
     @Published var availableCameras: [AVCaptureDevice] = []
     @Published var selectedCamera: AVCaptureDevice?
     @Published var isCameraReady: Bool = false
-   
+    
     // MARK: - Private Properties
     private let recorder = ScreenRecorderWithHDR()
     private let cameraRecorder = CameraRecorder()
     private var cancellables = Set<AnyCancellable>()
     private var denoiser: AudioDenoiser?
     
-//    private var cursorTracker: PollingCursorTracker?
+    // private var cursorTracker: PollingCursorTracker?
     private var inputTracker: PollingCursorAndKeyboardTracker?
+    
+    // MARK: displays tracker
+    // A reference to the coordinator.
+//    var coordinator: AppCoordinator?
    
     // MARK: - Initialization
     init() {
@@ -212,7 +216,8 @@ class ScreenRecorderViewModel: ObservableObject {
             }
         }
     }
-   
+    
+    
     // Denoiser: remove background noise.
     func enhanceAudio() {
         guard let microphoneURL = microphoneURL, !isProcessingAudio, !isRecording else { return }
@@ -362,5 +367,3 @@ class ScreenRecorderViewModel: ObservableObject {
         cancellables.removeAll()
     }
 }
-
-
