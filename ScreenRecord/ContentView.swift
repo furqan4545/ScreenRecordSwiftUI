@@ -128,16 +128,29 @@ struct ContentView: View {
             Divider()
                 .padding(.vertical, 5)
             
-            Button("Select Display") {
-                // Determine the number of screens available
-                let screens = NSScreen.screens
-                let count = min(screens.count, 6)
-                for index in 0..<count {
-                    // Opens a dynamic window with the screen index as its value.
-                    openWindow(id: "dynamic-display", value: index)
+            HStack(spacing: 15) {
+                Button("Select Display") {
+                    // Your existing code for display selection
+                    let screens = NSScreen.screens
+                    let count = min(screens.count, 6)
+                    for index in 0..<count {
+                        openWindow(id: "dynamic-display", value: index)
+                    }
                 }
+                .buttonStyle(.borderedProminent)
+                
+                
+                Button("Select Window") {
+                    // First check if we already have permission in the viewModel
+                    if viewModel.isPermissionGranted {
+                        SCContentSharingPicker.shared.isActive = true
+                        SCContentSharingPicker.shared.present(using: .window)
+                    } else {
+                        viewModel.requestPermission()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
