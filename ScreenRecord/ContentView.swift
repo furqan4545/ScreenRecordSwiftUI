@@ -7,26 +7,9 @@ import Cocoa
 
 struct ContentView: View {
     @StateObject private var viewModel = ScreenRecorderViewModel()
-    @State private var windowDetectorRunning = false
-    
     
     // MARK: Display Manager for plotting overlay windows.
     @Environment(\.openWindow) private var openWindow
-    
-    
-    
-    func getWindowNumberUnderCursorAppKit() -> Int? {
-        let mouseLocation = NSEvent.mouseLocation // Bottom-left origin (Cocoa standard)
-        let windowNumber = NSWindow.windowNumber(at: mouseLocation, belowWindowWithWindowNumber: 0)
-
-        if windowNumber != 0 && windowNumber != -1 { // Check for valid window number
-            return windowNumber
-        } else {
-            return nil
-        }
-    }
-    
-    
     
     var body: some View {
         VStack(spacing: 20) {
