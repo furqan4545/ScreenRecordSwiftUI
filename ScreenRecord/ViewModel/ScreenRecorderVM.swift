@@ -79,6 +79,7 @@ class ScreenRecorderViewModel: ObservableObject {
     enum RecordingMode {
         case screen
         case window
+        case display
     }
     
     
@@ -87,6 +88,12 @@ class ScreenRecorderViewModel: ObservableObject {
     func startWindowSelection() {
         recordingMode = .window
         startRecording() // This will show the picker
+    }
+    
+    // Add a method for display selection
+    func startDisplaySelection() {
+        recordingMode = .display
+        startRecording()
     }
     
     
@@ -134,28 +141,24 @@ class ScreenRecorderViewModel: ObservableObject {
     
     
     // MARK: - Public Methods
-    // Update the startRecording method to handle both modes
+    // Update the startRecording method to handle display selection
     func startRecording() {
         errorMessage = nil
-        
-        // Reset URLs and hide recording info before starting
         showRecordingInfo = false
         isPreparing = true
         
-        if recordingMode == .window {
-            // For window mode, show the picker
-            windowPickerManager.showPicker()
-            // Actual recording will start in the callback when window is selected
-        } else {
-            // For screen mode, proceed with regular recording
-            // If camera is enabled but not ready, prepare it and wait
+        switch recordingMode {
+        case .window, .display:
+            // Show picker based on mode
+            windowPickerManager.showPicker(mode: recordingMode == .window ? .window : .display)
+            
+        case .screen:
+            // Standard screen recording logic
             if isCameraEnabled && !isCameraReady {
-                // Wait briefly for camera to initialize
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                     self?.performRecording()
                 }
             } else {
-                // Start immediately if camera is ready or not used
                 performRecording()
             }
         }

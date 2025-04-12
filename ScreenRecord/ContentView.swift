@@ -145,8 +145,25 @@ struct ContentView: View {
                             .background(Color.primary.gradient, in: .rect(cornerRadius: 8))
                     }
                     .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 5)
+                    .disabled(viewModel.isPreparing)
+                    
+                    // Display Picker Button (NEW)
+                    Button {
+                        if viewModel.isRecording {
+                            viewModel.stopRecording()
+                        } else {
+                            viewModel.startDisplaySelection()
+                        }
+                    } label: {
+                        Text(viewModel.isRecording ? "Stop Recording" : "Choose Display")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.background)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 20)
+                            .background(Color.blue.gradient, in: .rect(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.isPreparing)
                     
                     /// Quit Button
                     Button("Quit") {

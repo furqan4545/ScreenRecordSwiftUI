@@ -35,6 +35,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     enum RecordingType {
         case screen // Full screen recording
         case window(SCContentFilter) // Recording a specific window with a given filter
+        case display(SCContentFilter) // Recording a specific display
     }
     
     enum RecorderState: Equatable {
@@ -173,8 +174,8 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
                 } ?? []
                 
                 filter = SCContentFilter(display: screen ?? firstDisplay,
-                                       excludingApplications: excludedApps,
-                                       exceptingWindows: [])
+                                         excludingApplications: excludedApps,
+                                         exceptingWindows: [])
                 
                 Task {
                     if let filter = filter {
@@ -194,32 +195,15 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
             Task {
                 await record(filter: windowFilter)
             }
+            
+        case .display(let displayFilter):
+            streamType = .screen // Or create a specific display type if needed
+            filter = displayFilter
+            
+            Task {
+                await record(filter: displayFilter)
+            }
         }
-        
-//        streamType = .screen
-//        
-//        if let firstDisplay = availableContent?.displays.first {
-//            //        if let firstDisplay = availableContent?.displays.dropFirst().first {
-//            screen = firstDisplay
-//            
-//            let excludedApps = availableContent?.applications.filter {
-//                Bundle.main.bundleIdentifier == $0.bundleIdentifier
-//            } ?? []
-//            
-//            filter = SCContentFilter(display: screen ?? firstDisplay,
-//                                     excludingApplications: excludedApps,
-//                                     exceptingWindows: [])
-//            
-//            Task {
-//                if let filter = filter {
-//                    await record(filter: filter)
-//                } else {
-//                    state = .error(NSError(domain: "ScreenRecorderError", code: 1, userInfo: ["message": "Failed to create content filter"]))
-//                }
-//            }
-//        } else {
-//            state = .error(NSError(domain: "ScreenRecorderError", code: 2, userInfo: ["message": "No display available"]))
-//        }
     }
     
     func stopRecording() {
