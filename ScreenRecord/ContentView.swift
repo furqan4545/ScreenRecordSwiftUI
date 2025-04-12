@@ -1,20 +1,31 @@
-////
-////  ContentView.swift
-////  ScreenRecord
-////
-////  Created by Furqan Ali on 3/24/25.
-////
-
+// ContentView.swift
 
 import SwiftUI
 import ScreenCaptureKit
 import AVFoundation
+import Cocoa
 
 struct ContentView: View {
     @StateObject private var viewModel = ScreenRecorderViewModel()
+    @State private var windowDetectorRunning = false
+    
     
     // MARK: Display Manager for plotting overlay windows.
     @Environment(\.openWindow) private var openWindow
+    
+    
+    
+    func getWindowNumberUnderCursorAppKit() -> Int? {
+        let mouseLocation = NSEvent.mouseLocation // Bottom-left origin (Cocoa standard)
+        let windowNumber = NSWindow.windowNumber(at: mouseLocation, belowWindowWithWindowNumber: 0)
+
+        if windowNumber != 0 && windowNumber != -1 { // Check for valid window number
+            return windowNumber
+        } else {
+            return nil
+        }
+    }
+    
     
     
     var body: some View {
@@ -124,32 +135,44 @@ struct ContentView: View {
             }
             .help("Records in High Dynamic Range for better color and brightness")
             
-            // Add Display Overlay button
+            // Recording Mode Section
             Divider()
                 .padding(.vertical, 5)
             
-            HStack(spacing: 15) {
-                Button("Select Display") {
-                    // Your existing code for display selection
-                    let screens = NSScreen.screens
-                    let count = min(screens.count, 6)
-                    for index in 0..<count {
-                        openWindow(id: "dynamic-display", value: index)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Recording Mode:")
+                    .font(.headline)
                 
+        
                 
-                Button("Select Window") {
-                    // First check if we already have permission in the viewModel
-                    if viewModel.isPermissionGranted {
-                        SCContentSharingPicker.shared.isActive = true
-                        SCContentSharingPicker.shared.present(using: .window)
-                    } else {
-                        viewModel.requestPermission()
+                HStack(spacing: 15) {
+                    /// Window Picker Button
+                    Button {
+                        if viewModel.isRecording {
+                            viewModel.stopRecording()
+                        } else {
+                            viewModel.startWindowSelection()
+                        }
+                    } label: {
+                        Text(viewModel.isRecording ? "Stop Recording" : "Choose Window")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.background)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 20)
+                            .background(Color.primary.gradient, in: .rect(cornerRadius: 8))
                     }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 5)
+                    
+                    /// Quit Button
+                    Button("Quit") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 10)
                 }
-                .buttonStyle(.borderedProminent)
+                
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -294,6 +317,16 @@ struct ContentView: View {
                         .background(Color.yellow.opacity(0.3))
                         .cornerRadius(4)
                 }
+                
+                // Add Window indicator if applicable
+                if url.lastPathComponent.contains("-Window") {
+                    Text("Window")
+                        .font(.caption)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.3))
+                        .cornerRadius(4)
+                }
                     
                 Spacer()
                 
@@ -409,4 +442,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+//        .environmentObject(ScreenRecorderV2())
 }

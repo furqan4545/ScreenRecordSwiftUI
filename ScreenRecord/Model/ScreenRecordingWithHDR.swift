@@ -32,6 +32,11 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         case mov, mp4
     }
     
+    enum RecordingType {
+        case screen // Full screen recording
+        case window(SCContentFilter) // Recording a specific window with a given filter
+    }
+    
     enum RecorderState: Equatable {
         case idle
         case preparing
@@ -151,35 +156,70 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         }
     }
     
-    func startRecording() {
+    func startRecording(type: RecordingType = .screen) {
         guard state != .recording else { return }
         
         state = .preparing
         
-        streamType = .screen
-        
-        if let firstDisplay = availableContent?.displays.first {
-            //        if let firstDisplay = availableContent?.displays.dropFirst().first {
-            screen = firstDisplay
+        switch type {
+        case .screen:
+            streamType = .screen
             
-            let excludedApps = availableContent?.applications.filter {
-                Bundle.main.bundleIdentifier == $0.bundleIdentifier
-            } ?? []
+            if let firstDisplay = availableContent?.displays.first {
+                screen = firstDisplay
+                
+                let excludedApps = availableContent?.applications.filter {
+                    Bundle.main.bundleIdentifier == $0.bundleIdentifier
+                } ?? []
+                
+                filter = SCContentFilter(display: screen ?? firstDisplay,
+                                       excludingApplications: excludedApps,
+                                       exceptingWindows: [])
+                
+                Task {
+                    if let filter = filter {
+                        await record(filter: filter)
+                    } else {
+                        state = .error(NSError(domain: "ScreenRecorderError", code: 1, userInfo: ["message": "Failed to create content filter"]))
+                    }
+                }
+            } else {
+                state = .error(NSError(domain: "ScreenRecorderError", code: 2, userInfo: ["message": "No display available"]))
+            }
             
-            filter = SCContentFilter(display: screen ?? firstDisplay,
-                                     excludingApplications: excludedApps,
-                                     exceptingWindows: [])
+        case .window(let windowFilter):
+            streamType = .window
+            filter = windowFilter
             
             Task {
-                if let filter = filter {
-                    await record(filter: filter)
-                } else {
-                    state = .error(NSError(domain: "ScreenRecorderError", code: 1, userInfo: ["message": "Failed to create content filter"]))
-                }
+                await record(filter: windowFilter)
             }
-        } else {
-            state = .error(NSError(domain: "ScreenRecorderError", code: 2, userInfo: ["message": "No display available"]))
         }
+        
+//        streamType = .screen
+//        
+//        if let firstDisplay = availableContent?.displays.first {
+//            //        if let firstDisplay = availableContent?.displays.dropFirst().first {
+//            screen = firstDisplay
+//            
+//            let excludedApps = availableContent?.applications.filter {
+//                Bundle.main.bundleIdentifier == $0.bundleIdentifier
+//            } ?? []
+//            
+//            filter = SCContentFilter(display: screen ?? firstDisplay,
+//                                     excludingApplications: excludedApps,
+//                                     exceptingWindows: [])
+//            
+//            Task {
+//                if let filter = filter {
+//                    await record(filter: filter)
+//                } else {
+//                    state = .error(NSError(domain: "ScreenRecorderError", code: 1, userInfo: ["message": "Failed to create content filter"]))
+//                }
+//            }
+//        } else {
+//            state = .error(NSError(domain: "ScreenRecorderError", code: 2, userInfo: ["message": "No display available"]))
+//        }
     }
     
     func stopRecording() {
@@ -480,71 +520,6 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         dispatchGroup.wait()
     }
     
-    //    // MARK: - SCStreamOutput Methods
-    //    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
-    //        guard sampleBuffer.isValid else { return }
-    //
-    //        switch outputType {
-    //        case .screen:
-    //            guard let attachmentsArray = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer,
-    //                                                                                 createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
-    //                  let attachments = attachmentsArray.first else { return }
-    //            guard let statusRawValue = attachments[SCStreamFrameInfo.status] as? Int,
-    //                  let status = SCFrameStatus(rawValue: statusRawValue),
-    //                  status == .complete else { return }
-    //
-    //            // For HDR recording, check if the buffer contains HDR metadata
-    //            if videoQuality == .hdr {
-    //                // Log HDR-specific information if available
-    //                if let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer) {
-    //                    if !hasStartedSession {
-    //                        // Get video format extension dictionary with color information
-    //                        let extensionDictionary = CMFormatDescriptionGetExtensions(formatDescription) as Dictionary?
-    //                        let videoDict = extensionDictionary?[kCMFormatDescriptionExtension_FormatName] as? String
-    //
-    //                        // Access the color space extensions
-    //                        if let colorAttachments = CMFormatDescriptionGetExtension(
-    //                            formatDescription,
-    //                            extensionKey: kCMFormatDescriptionExtension_ColorPrimaries
-    //                        ) {
-    //                            print("Recording with color primaries: \(colorAttachments)")
-    //                        }
-    //
-    //                        if let transferFunction = CMFormatDescriptionGetExtension(
-    //                            formatDescription,
-    //                            extensionKey: kCMFormatDescriptionExtension_TransferFunction
-    //                        ) {
-    //                            print("Recording with transfer function: \(transferFunction)")
-    //                        }
-    //
-    //                        // More basic approach, just print the format name
-    //                        print("Recording with format: \(videoDict ?? "Unknown")")
-    //                    }
-    //                }
-    //            }
-    //
-    //            // Start the session only once at the first valid frame.
-    //            if !hasStartedSession {
-    //                if let vW = vW, vW.status == .writing {
-    //                    let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-    //                    vW.startSession(atSourceTime: timestamp)
-    //                    hasStartedSession = true
-    //                }
-    //            }
-    //
-    //            if vwInput.isReadyForMoreMediaData {
-    //                vwInput.append(sampleBuffer)
-    //            }
-    //
-    //        case .audio:
-    //            if awInput.isReadyForMoreMediaData {
-    //                awInput.append(sampleBuffer)
-    //            }
-    //
-    //        default:
-    //            assertionFailure("Unknown stream type")
-    //        }
-    //    }
     
     // MARK: - SCStreamOutput Methods
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {

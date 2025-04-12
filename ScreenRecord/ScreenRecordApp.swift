@@ -13,11 +13,15 @@ struct ScreenRecorderApp: App {
     @State private var permissionsGranted = false
     @State private var showDisplayOverlays = false
     
+    
+//    @StateObject private var screenRecorder = ScreenRecorderV2()
+    
     var body: some Scene {
         WindowGroup {
             ZStack {
                 if permissionsGranted {
                     ContentView()
+//                        .environmentObject(screenRecorder)
                 } else {
                     PermissionsView(permissionsGranted: $permissionsGranted)
                 }

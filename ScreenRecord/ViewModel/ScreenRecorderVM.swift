@@ -43,6 +43,9 @@ class ScreenRecorderViewModel: ObservableObject {
     @Published var selectedCamera: AVCaptureDevice?
     @Published var isCameraReady: Bool = false
     
+    // MARK: recording window or screen
+    @Published var recordingMode: RecordingMode = .screen
+    
     // MARK: - Private Properties
     private let recorder = ScreenRecorderWithHDR()
     private let cameraRecorder = CameraRecorder()
@@ -54,7 +57,9 @@ class ScreenRecorderViewModel: ObservableObject {
     
     // MARK: displays tracker
     // A reference to the coordinator.
-//    var coordinator: AppCoordinator?
+    // MARK: Window Tracker
+    
+    private let windowPickerManager = WindowPickerManager()
    
     // MARK: - Initialization
     init() {
@@ -62,6 +67,7 @@ class ScreenRecorderViewModel: ObservableObject {
         setupBindings()
         requestPermission()
         setupCameraBindings()
+        setupWindowPickerBinding()
         
         // Initialize the recorder with the default HDR setting
         setHDRMode(isHDREnabled)
@@ -69,7 +75,66 @@ class ScreenRecorderViewModel: ObservableObject {
         setupCursorTracking()
     }
     
+    // Add a property to track the current recording mode
+    enum RecordingMode {
+        case screen
+        case window
+    }
+    
+    
+    // MARK: - Window Recording Methods
+    // Method to start window selection
+    func startWindowSelection() {
+        recordingMode = .window
+        startRecording() // This will show the picker
+    }
+    
+    
+    // MARK: - Setup Window Picker.
+    private func setupWindowPickerBinding() {
+        windowPickerManager.onContentSelected = { [weak self] filter in
+            guard let self = self else { return }
+            
+            // Immediately capture what we need before the Task
+            let isEnabled = self.isCameraEnabled
+            let isReady = self.isCameraReady
+            
+            // Dispatch back to main thread and handle everything there
+            DispatchQueue.main.async {
+                self.recordingMode = .window
+                self.isPreparing = true
+                
+                // Start camera first if enabled
+                if isEnabled && isReady {
+                    self.cameraRecorder.startRecording()
+                    
+                    // Add a delay before starting window recording
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        self.recorder.startRecording(type: .window(filter))
+                        self.startInputTrackingIfEnabled()
+                    }
+                } else {
+                    // If no camera, start window recording immediately
+                    self.recorder.startRecording(type: .window(filter))
+                    self.startInputTrackingIfEnabled()
+                }
+            }
+        }
+        
+        // Add a cancellation callback
+        windowPickerManager.onPickerCancelled = { [weak self] in
+            DispatchQueue.main.async {
+                // Reset the preparing state when cancelled
+                self?.isPreparing = false
+                // Also reset recording mode if needed
+                self?.recordingMode = .screen
+            }
+        }
+    }
+    
+    
     // MARK: - Public Methods
+    // Update the startRecording method to handle both modes
     func startRecording() {
         errorMessage = nil
         
@@ -77,18 +142,26 @@ class ScreenRecorderViewModel: ObservableObject {
         showRecordingInfo = false
         isPreparing = true
         
-        // If camera is enabled but not ready, prepare it and wait
-        if isCameraEnabled && !isCameraReady {
-            // Wait briefly for camera to initialize
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.performRecording()
-            }
+        if recordingMode == .window {
+            // For window mode, show the picker
+            windowPickerManager.showPicker()
+            // Actual recording will start in the callback when window is selected
         } else {
-            // Start immediately if camera is ready or not used
-            performRecording()
+            // For screen mode, proceed with regular recording
+            // If camera is enabled but not ready, prepare it and wait
+            if isCameraEnabled && !isCameraReady {
+                // Wait briefly for camera to initialize
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.performRecording()
+                }
+            } else {
+                // Start immediately if camera is ready or not used
+                performRecording()
+            }
         }
     }
    
+    
     private func performRecording() {
         // Ensure HDR setting is applied right before recording
         setHDRMode(isHDREnabled)
@@ -102,15 +175,15 @@ class ScreenRecorderViewModel: ObservableObject {
                 guard let self = self else { return }
                 
                 // Start screen recording after the delay
-                self.recorder.startRecording()
+                self.recorder.startRecording(type: .screen) // Specify screen type
                 
-                startInputTrackingIfEnabled() // cursor tracking start
+                startInputTrackingIfEnabled()
             }
         } else {
             // If no camera, start screen recording immediately
-            recorder.startRecording()
+            recorder.startRecording(type: .screen) // Specify screen type
             
-            startInputTrackingIfEnabled() // cursor tracking start
+            startInputTrackingIfEnabled()
         }
     }
    
