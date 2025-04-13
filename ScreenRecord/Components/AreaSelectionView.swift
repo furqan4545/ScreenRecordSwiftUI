@@ -1,14 +1,11 @@
 //
-//  PunchThroughSelectionView.swift
+//  AreaSelectionView.swift
 //  ScreenRecord
 //
 //  Created by Furqan Ali on 4/13/25.
 //
 //
 
-
-// AreaSelectionView.swift
-// Simplified approach with resize capability
 
 import SwiftUI
 import Combine
@@ -42,6 +39,13 @@ struct AreaSelectionView: View {
     @State private var selectionState: SelectionState = .idle
     @State private var dragOffset: CGPoint = .zero
     @State private var viewSize: CGSize = .zero
+    @State private var showSizeWarning: Bool = false
+    
+    // Constants
+    private let MIN_WIDTH: CGFloat = 300
+    private let MIN_HEIGHT: CGFloat = 200
+    private let handleSize: CGFloat = 8
+    private let halfHandleSize: CGFloat = 4
     
     // Store the completed selection area
     @EnvironmentObject var screenSelectionManager: ScreenSelectionManager
@@ -51,10 +55,6 @@ struct AreaSelectionView: View {
     
     // Environment to access window dismissal
     @Environment(\.dismiss) private var dismiss
-    
-    // Constants
-    private let handleSize: CGFloat = 8
-    private let halfHandleSize: CGFloat = 4
     
     var body: some View {
         GeometryReader { geometry in
@@ -111,6 +111,29 @@ struct AreaSelectionView: View {
                         )
                 }
                 
+                // Start Recording button in center of selection
+                if selectionCompleted && !currentSelection.isEmpty {
+                    Button {
+                        // This will be connected to actual recording later
+                        print("Start recording requested")
+                    } label: {
+                        HStack {
+                            Image(systemName: "record.circle")
+                                .font(.system(size: 18))
+                            Text("Start Recording")
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                        .shadow(radius: 3)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .position(x: currentSelection.midX, y: currentSelection.midY)
+                }
+                
                 // Instructions text
                 if !selectionCompleted {
                     VStack {
@@ -127,48 +150,72 @@ struct AreaSelectionView: View {
                         
                         Spacer()
                         
-                        Button("Cancel") {
-                            dismiss()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .tint(.red)
-                        .padding()
+                        // Modified: Move the Cancel button to the button control box
+                        // (We'll add a shared button control box at the bottom)
                     }
                 }
                 
-                // Buttons after selection is completed
-                if selectionCompleted {
-                    VStack {
-                        Spacer()
-                        
-                        HStack(spacing: 20) {
-                            Button("Reset") {
-                                resetSelection()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
-                            .tint(.orange)
-                            
-                            Button("Start Recording") {
-                                confirmSelection()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
-                            .tint(.green)
-                            
-                            Button("Cancel") {
-                                dismiss()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
-                            .tint(.red)
-                        }
+                // Size warning message
+                if showSizeWarning {
+                    Text("Selection must be at least 300×200 pixels")
+                        .font(.headline)
+                        .foregroundColor(.white)
                         .padding()
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(10)
-                        .padding(.bottom, 20)
+                        .background(Color.red.opacity(0.8))
+                        .cornerRadius(8)
+                        .shadow(radius: 3)
+                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                        .transition(.opacity)
+                        .onAppear {
+                            // Hide the warning after 2 seconds
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                withAnimation {
+                                    showSizeWarning = false
+                                }
+                            }
+                        }
+                }
+                
+                // MODIFIED: Bottom buttons control box - always shown but with conditional Reset button
+                VStack {
+                    Spacer()
+                    
+                    HStack(spacing: 20) {
+                        // Only show Reset button if selection is completed
+                        if selectionCompleted {
+                            Button {
+                                resetSelection()
+                            } label: {
+                                Text("Reset")
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.black)
+                                    .padding(.vertical, 7)
+                                    .padding(.horizontal, 24)
+                                    .background(Color.yellow)
+                                    .cornerRadius(8)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        
+                        Button {
+                            closeAllOverlayWindows()
+                        } label: {
+                            Text("Cancel")
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 7)
+                                .padding(.horizontal, 24)
+                                .background(Color.red)
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 20)
+                    .frame(height: 55) // Fixed height for the control box
+                    .background(Color.black.opacity(0.7))
+                    .cornerRadius(10)
+                    .padding(.bottom, 20)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -182,6 +229,10 @@ struct AreaSelectionView: View {
                         handleDragEnd(value)
                     }
             )
+            // Handle Escape key without using global keyboard shortcuts
+            .onExitCommand {
+                closeAllOverlayWindows()
+            }
             .onAppear {
                 // Check if this screen should have a selection
                 updateFromManager()
@@ -211,6 +262,15 @@ struct AreaSelectionView: View {
                 cancellable?.cancel()
             }
         }
+    }
+    
+    // Function to close all overlay windows
+    private func closeAllOverlayWindows() {
+        // Post a notification that all overlays should close
+        NotificationCenter.default.post(name: Notification.Name("CloseAllOverlays"), object: nil)
+        
+        // Also notify the manager
+        screenSelectionManager.closeAllOverlays()
     }
     
     // Draw resize handles
@@ -247,9 +307,7 @@ struct AreaSelectionView: View {
         }
     }
     
-    // Update the handleDragChange function in AreaSelectionView
-
-    // Replace the existing handleDragChange function with this version
+    // Handle drag gesture change
     private func handleDragChange(_ value: DragGesture.Value) {
         switch selectionState {
         case .idle:
@@ -335,12 +393,16 @@ struct AreaSelectionView: View {
     private func handleDragEnd(_ value: DragGesture.Value) {
         switch selectionState {
         case .drawing:
-            // Complete drawing if the selection has a meaningful size
-            if currentSelection.width > 5 && currentSelection.height > 5 {
+            // Check if the selection meets minimum size requirements
+            if currentSelection.width >= MIN_WIDTH && currentSelection.height >= MIN_HEIGHT {
+                // Selection is large enough
                 selectionCompleted = true
                 saveSelectionToManager()
             } else {
-                // Reset if too small
+                // Selection is too small - show warning
+                withAnimation {
+                    showSizeWarning = true
+                }
                 resetSelection()
             }
             
@@ -544,7 +606,7 @@ struct AreaSelectionView: View {
     
     private func confirmSelection() {
         screenSelectionManager.confirmAreaSelection()
-        dismiss()
+        closeAllOverlayWindows()
     }
 }
 
@@ -564,5 +626,3 @@ extension CGPoint {
         return sqrt(dx*dx + dy*dy)
     }
 }
-
-

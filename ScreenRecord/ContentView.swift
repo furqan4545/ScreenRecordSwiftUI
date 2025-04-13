@@ -14,6 +14,7 @@ struct ContentView: View {
     @EnvironmentObject private var screenSelectionManager: ScreenSelectionManager
     @State private var showingSelectionInfo = false
     
+    
     // Add this function to your ContentView
     private func testAreaSelection() {
         // Start by opening overlays on all screens
@@ -221,6 +222,7 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                     .padding(.top, 10)
                 }
+                
                 
             }
         }
