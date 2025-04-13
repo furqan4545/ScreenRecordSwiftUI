@@ -108,8 +108,9 @@ class ScreenRecorderViewModel: ObservableObject {
             
             // Dispatch back to main thread and handle everything there
             DispatchQueue.main.async {
-                self.recordingMode = .window
                 self.isPreparing = true
+                // SET HDR MODE HERE (missing in original code)
+                self.setHDRMode(self.isHDREnabled)
                 
                 // Start camera first if enabled
                 if isEnabled && isReady {
@@ -117,12 +118,22 @@ class ScreenRecorderViewModel: ObservableObject {
                     
                     // Add a delay before starting window recording
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        self.recorder.startRecording(type: .window(filter))
+                        if self.recordingMode == .window {
+                            self.recorder.startRecording(type: .window(filter))
+                        } else {
+                            self.recorder.startRecording(type: .display(filter))
+                        }
+                        // START INPUT TRACKING HERE (missing in original code)
                         self.startInputTrackingIfEnabled()
                     }
                 } else {
                     // If no camera, start window recording immediately
-                    self.recorder.startRecording(type: .window(filter))
+                    if self.recordingMode == .window {
+                        self.recorder.startRecording(type: .window(filter))
+                    } else {
+                        self.recorder.startRecording(type: .display(filter))
+                    }
+                    // START INPUT TRACKING HERE TOO (missing in original code)
                     self.startInputTrackingIfEnabled()
                 }
             }
@@ -133,8 +144,6 @@ class ScreenRecorderViewModel: ObservableObject {
             DispatchQueue.main.async {
                 // Reset the preparing state when cancelled
                 self?.isPreparing = false
-                // Also reset recording mode if needed
-                self?.recordingMode = .screen
             }
         }
     }
@@ -242,7 +251,6 @@ class ScreenRecorderViewModel: ObservableObject {
     // Call this method in your init() function
     func setupCursorTracking() {
         // Initialize the cursor tracker
-//        cursorTracker = PollingCursorTracker(fps: 30)
         inputTracker = PollingCursorAndKeyboardTracker(fps: 30, trackKeyboard: true)
     }
     
