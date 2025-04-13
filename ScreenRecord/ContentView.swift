@@ -165,6 +165,27 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                     .disabled(viewModel.isPreparing)
                     
+                    // Area Picker Button (NEW)
+                    Button {
+                        // code for plotting screensaver overlays
+                        let screens = NSScreen.screens
+                        let count = min(screens.count, 6)
+                        for index in 0..<count {
+                            openWindow(id: "dynamic-display", value: index)
+                        }
+                    } label: {
+                        Text(viewModel.isRecording ? "Stop Recording" : "Choose Area")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.background)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 20)
+                            .background(Color.blue.gradient, in: .rect(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.isPreparing)
+                    
+                    
+                    
                     /// Quit Button
                     Button("Quit") {
                         NSApplication.shared.terminate(nil)

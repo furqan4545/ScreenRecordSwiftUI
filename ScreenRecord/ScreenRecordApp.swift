@@ -36,8 +36,6 @@ struct ScreenRecorderApp: App {
         
         // Register the dynamic window scene.
         dynamicDisplayScene
-        // register window selector.
-//        windowSelectorScene
         
     }
 }
