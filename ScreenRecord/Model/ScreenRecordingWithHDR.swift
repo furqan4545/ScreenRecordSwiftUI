@@ -16,7 +16,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     
     // MARK: - Enums
     enum StreamType: Int {
-        case screen, window, systemAudio
+        case screen, window, systemAudio, area
     }
     
     enum VideoQuality {
@@ -36,6 +36,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         case screen // Full screen recording
         case window(SCContentFilter) // Recording a specific window with a given filter
         case display(SCContentFilter) // Recording a specific display
+        case area(SCContentFilter) // Recording a specific area with a given filter
     }
     
     enum RecorderState: Equatable {
@@ -202,6 +203,14 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
             
             Task {
                 await record(filter: displayFilter)
+            }
+        
+        case .area(let areaFilter):
+            streamType = .area // Add this new stream type to your enum
+            filter = areaFilter
+            
+            Task {
+                await record(filter: areaFilter)
             }
         }
     }

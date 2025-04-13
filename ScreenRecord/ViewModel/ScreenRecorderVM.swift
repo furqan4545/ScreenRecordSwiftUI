@@ -80,6 +80,7 @@ class ScreenRecorderViewModel: ObservableObject {
         case screen
         case window
         case display
+        
     }
     
     

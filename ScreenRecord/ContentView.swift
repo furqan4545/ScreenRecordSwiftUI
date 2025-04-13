@@ -11,6 +11,45 @@ struct ContentView: View {
     // MARK: Display Manager for plotting overlay windows.
     @Environment(\.openWindow) private var openWindow
     
+    @EnvironmentObject private var screenSelectionManager: ScreenSelectionManager
+    @State private var showingSelectionInfo = false
+    
+    // Add this function to your ContentView
+    private func testAreaSelection() {
+        // Start by opening overlays on all screens
+        screenSelectionManager.startAreaSelection()
+        
+        let screens = NSScreen.screens
+        let count = min(screens.count, 6) // Reasonable limit
+        for index in 0..<count {
+            openWindow(id: "dynamic-display", value: index)
+        }
+        
+        // Set up observation of selection confirmation
+        // This is important for testing the area selection
+        setupSelectionObserver()
+    }
+
+    // Add this function to monitor selection status
+    private func setupSelectionObserver() {
+        // Start observing the selection manager
+        // In a real app you might use Combine for this
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            if !screenSelectionManager.isSelectionInProgress {
+                // We're done with selection process
+                if screenSelectionManager.isSelectionConfirmed,
+                   let _ = screenSelectionManager.selectedArea {
+                    // Selection was confirmed - show info
+                    showingSelectionInfo = true
+                }
+                return
+            }
+            
+            // Keep checking until selection completes
+            setupSelectionObserver()
+        }
+    }
+    
     var body: some View {
         VStack(spacing: 20) {
             title
@@ -166,23 +205,12 @@ struct ContentView: View {
                     .disabled(viewModel.isPreparing)
                     
                     // Area Picker Button (NEW)
-                    Button {
-                        // code for plotting screensaver overlays
-                        let screens = NSScreen.screens
-                        let count = min(screens.count, 6)
-                        for index in 0..<count {
-                            openWindow(id: "dynamic-display", value: index)
-                        }
-                    } label: {
-                        Text(viewModel.isRecording ? "Stop Recording" : "Choose Area")
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.background)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 20)
-                            .background(Color.blue.gradient, in: .rect(cornerRadius: 8))
+                    Button("Test Area Selection") {
+                        testAreaSelection()
                     }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.isPreparing)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(screenSelectionManager.isSelectionInProgress)
+                    .padding()
                     
                     
                     
