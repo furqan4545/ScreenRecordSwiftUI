@@ -58,6 +58,8 @@ struct SelectDisplayView: View {
                         window.alphaValue = 1.0
                         window.hasShadow = false
                         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+                        // Set the window's click behavior (initially, not click-through)
+                        window.ignoresMouseEvents = false
                         
                         print("Overlay window for display \(screenID + 1) on \(screens[screenID].localizedName)")
                     } else {
@@ -65,6 +67,14 @@ struct SelectDisplayView: View {
                     }
                 }
             })
+            // Listen for changes in the shared recording state and update the window's click behavior.
+            .onChange(of: screenSelectionManager.isRecordingStarted) { _, recordingStarted in
+                nsWindow?.ignoresMouseEvents = recordingStarted
+                // below line should bring the overlay window into focus automatically when recording starts without you having to click it first
+                if recordingStarted {
+                    nsWindow?.makeKeyAndOrderFront(nil)
+                }
+            }
     }
     
     // Setup a global event monitor for the ESC key
@@ -88,4 +98,3 @@ struct SelectDisplayView: View {
         }
     }
 }
-

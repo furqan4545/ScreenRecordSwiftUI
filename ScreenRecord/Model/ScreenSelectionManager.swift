@@ -25,6 +25,8 @@ class ScreenSelectionManager: ObservableObject {
     
     // Event publisher to notify overlays to close (optional, if you want to use property observation)
     @Published var shouldCloseAllOverlays: Bool = false
+    // NEW: Shared recording state
+    @Published var isRecordingStarted: Bool = false
     
     // MARK: - Public Methods
     
@@ -87,6 +89,16 @@ class ScreenSelectionManager: ObservableObject {
         // Clear the saved selection to avoid it being used on subsequent overlay creation.
         clearAreaSelection()
     }
+    
+    // Optionally, add a method to trigger recording state change
+    func startRecording() {
+        isRecordingStarted = true
+    }
+    
+    func resetRecording() {
+        isRecordingStarted = false
+    }
+    //////
     
     func getAbsoluteSelectionRect() -> CGRect? {
         guard let selection = selectedArea else { return nil }
