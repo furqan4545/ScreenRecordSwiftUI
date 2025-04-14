@@ -121,12 +121,15 @@ struct AreaSelectionView: View {
                         print("Start Recording requested:")
                         print("Selection Rectangle: \(currentSelection)") // CGRect details
                         print("Screen ID: \(screenID)")
-                        // This will be connected to actual recording later
-//                        print("Start recording requested")
-                        // Call the view model to start recording in area mode.
-//                        recorderViewModel.startAreaRecording()
-//                        // Optionally, dismiss overlays if needed:
-//                        closeAllOverlayWindows()
+                        
+                        
+                        if screenID < recorderViewModel.displays.count {
+                            let targetDisplay = recorderViewModel.displays[screenID]
+                            recorderViewModel.startAreaRecording(on: targetDisplay, with: currentSelection)
+                        } else {
+                            print("Invalid screen ID")
+                        }
+                        
                     } label: {
                         HStack {
                             Image(systemName: "record.circle")
@@ -637,3 +640,4 @@ extension CGPoint {
         return sqrt(dx*dx + dy*dy)
     }
 }
+

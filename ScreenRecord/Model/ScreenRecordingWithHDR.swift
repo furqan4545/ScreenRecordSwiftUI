@@ -36,7 +36,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         case screen // Full screen recording
         case window(SCContentFilter) // Recording a specific window with a given filter
         case display(SCContentFilter) // Recording a specific display
-        case area(SCDisplay)
+        case area(SCDisplay, CGRect)
     }
     
     enum RecorderState: Equatable {
@@ -205,7 +205,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
                 await record(filter: displayFilter)
             }
         
-        case .area(let targetDisplay):
+        case .area(let targetDisplay, let areaRect):
             streamType = .screen
             let excludedApps = availableContent?.applications.filter {
                 Bundle.main.bundleIdentifier == $0.bundleIdentifier
@@ -217,7 +217,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
             
             Task {
                 if let filter = filter {
-                    await record(filter: filter, isAreaRecording: true)
+                    await record(filter: filter, isAreaRecording: true, areaRect: areaRect)
                 } else {
                     state = .error(NSError(domain: "ScreenRecorderError", code: 1, userInfo: ["message": "Failed to create content filter"]))
                 }
@@ -251,7 +251,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         audioSettings[AVEncoderBitRateKey] = AudioQuality.high.rawValue * 1000
     }
     
-    private func record(filter: SCContentFilter, isAreaRecording: Bool = false) async {
+    private func record(filter: SCContentFilter, isAreaRecording: Bool = false, areaRect: CGRect? = nil) async {
         //        let conf = SCStreamConfiguration()
         let conf: SCStreamConfiguration
         
@@ -266,12 +266,12 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         conf.width = Int(filter.contentRect.width) * Int(filter.pointPixelScale)
         conf.height = Int(filter.contentRect.height) * Int(filter.pointPixelScale)
         conf.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(60))
-        
-        if isAreaRecording {
+            
+        if isAreaRecording, let areaRect = areaRect {
             // when we are recording area... execute this check else continue
             // IMP capture portion of the screen
             // Only trigger for area recordings.
-            conf.sourceRect = CGRect(x: 0, y: 0, width: 500, height: 500)
+            conf.sourceRect = areaRect
             //        conf.backgroundColor = .white  /// (optional) for modifying background color
         }
 

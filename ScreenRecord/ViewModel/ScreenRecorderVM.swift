@@ -94,9 +94,27 @@ class ScreenRecorderViewModel: ObservableObject {
     }
     
     // Add a method for area selection
-    func startAreaRecording() {
+    func startAreaRecording(on display: SCDisplay, with selectionRect: CGRect) {
         print("area recording will receive it's param here like screen id and x,y,width and height")
         print("work to do here for area recording")
+        if isCameraEnabled && isCameraReady {
+            cameraRecorder.startRecording()
+            
+            // Add a 1-second delay before starting screen recording
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                guard let self = self else { return }
+                
+                // Start screen recording after the delay
+                self.recorder.startRecording(type: .area(display, selectionRect)) // Specify screen type
+                
+                startInputTrackingIfEnabled()
+            }
+        } else {
+            // If no camera, start screen recording immediately
+            self.recorder.startRecording(type: .area(display, selectionRect)) // Specify screen type
+            
+            startInputTrackingIfEnabled()
+        }
     }
     
     
