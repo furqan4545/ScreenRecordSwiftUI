@@ -74,7 +74,7 @@ struct AreaSelectionView: View {
                     // Draw blue overlay everywhere
                     context.fill(
                         Path(CGRect(origin: .zero, size: size)),
-                        with: .color(Color.blue.opacity(0.3))
+                        with: .color(Color(red: 95/255, green: 102/255, blue: 255/255).opacity(0.22))
                     )
                     
                     // If there's a selection, clear that area
