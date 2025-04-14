@@ -55,10 +55,7 @@ class ScreenRecorderViewModel: ObservableObject {
     // private var cursorTracker: PollingCursorTracker?
     private var inputTracker: PollingCursorAndKeyboardTracker?
     
-    // MARK: displays tracker
-    // A reference to the coordinator.
     // MARK: Window Tracker
-    
     private let windowPickerManager = WindowPickerManager()
    
     // MARK: - Initialization
@@ -80,7 +77,6 @@ class ScreenRecorderViewModel: ObservableObject {
         case screen
         case window
         case display
-        
     }
     
     
@@ -95,6 +91,12 @@ class ScreenRecorderViewModel: ObservableObject {
     func startDisplaySelection() {
         recordingMode = .display
         startRecording()
+    }
+    
+    // Add a method for area selection
+    func startAreaRecording() {
+        print("area recording will receive it's param here like screen id and x,y,width and height")
+        print("work to do here for area recording")
     }
     
     
@@ -161,7 +163,7 @@ class ScreenRecorderViewModel: ObservableObject {
         case .window, .display:
             // Show picker based on mode
             windowPickerManager.showPicker(mode: recordingMode == .window ? .window : .display)
-            
+        
         case .screen:
             // Standard screen recording logic
             if isCameraEnabled && !isCameraReady {

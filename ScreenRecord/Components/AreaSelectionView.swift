@@ -50,6 +50,9 @@ struct AreaSelectionView: View {
     // Store the completed selection area
     @EnvironmentObject var screenSelectionManager: ScreenSelectionManager
     
+    // NEW: Add the view model environment object.
+    @EnvironmentObject var recorderViewModel: ScreenRecorderViewModel
+    
     // Cancellable for tracking selection changes
     @State private var cancellable: AnyCancellable?
     
@@ -114,8 +117,16 @@ struct AreaSelectionView: View {
                 // Start Recording button in center of selection
                 if selectionCompleted && !currentSelection.isEmpty {
                     Button {
+                        print("test start")
+                        print("Start Recording requested:")
+                        print("Selection Rectangle: \(currentSelection)") // CGRect details
+                        print("Screen ID: \(screenID)")
                         // This will be connected to actual recording later
-                        print("Start recording requested")
+//                        print("Start recording requested")
+                        // Call the view model to start recording in area mode.
+//                        recorderViewModel.startAreaRecording()
+//                        // Optionally, dismiss overlays if needed:
+//                        closeAllOverlayWindows()
                     } label: {
                         HStack {
                             Image(systemName: "record.circle")

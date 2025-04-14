@@ -6,7 +6,7 @@ import AVFoundation
 import Cocoa
 
 struct ContentView: View {
-    @StateObject private var viewModel = ScreenRecorderViewModel()
+    @EnvironmentObject var viewModel: ScreenRecorderViewModel
     
     // MARK: Display Manager for plotting overlay windows.
     @Environment(\.openWindow) private var openWindow

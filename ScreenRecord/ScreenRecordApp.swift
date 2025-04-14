@@ -13,10 +13,9 @@ struct ScreenRecorderApp: App {
     @State private var permissionsGranted = false
     @State private var showDisplayOverlays = false
     
-    
-//    @StateObject private var screenRecorder = ScreenRecorderV2()
     // Create and provide the selection manager
     @StateObject private var screenSelectionManager = ScreenSelectionManager()
+    @StateObject private var recorderViewModel = ScreenRecorderViewModel()
     
     var body: some Scene {
         WindowGroup {
@@ -24,6 +23,7 @@ struct ScreenRecorderApp: App {
                 if permissionsGranted {
                     ContentView()
                         .environmentObject(screenSelectionManager)
+                        .environmentObject(recorderViewModel)
                 } else {
                     PermissionsView(permissionsGranted: $permissionsGranted)
                 }
@@ -35,6 +35,14 @@ struct ScreenRecorderApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
+        .commands {
+            CommandMenu("Developer") {
+                Button("Panic Exit") {
+                    NSApp.terminate(nil)
+                }
+                .keyboardShortcut(.init("P", modifiers: [.command, .shift]))
+            }
+        }
         
         // Register the dynamic window scene.
         dynamicDisplayScene
@@ -51,6 +59,7 @@ extension ScreenRecorderApp {
             if let screenID = screenID {
                 SelectDisplayView(screenID: screenID)
                     .environmentObject(screenSelectionManager)
+                    .environmentObject(recorderViewModel) // <-- Add this line!
                     .onAppear {
                         // Register this overlay
                         screenSelectionManager.registerOverlay(screenID: screenID)
