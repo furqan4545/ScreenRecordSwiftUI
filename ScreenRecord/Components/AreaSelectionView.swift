@@ -5,7 +5,7 @@
 //  Created by Furqan Ali on 4/13/25.
 //
 //
-
+//
 
 import SwiftUI
 import Combine
@@ -94,6 +94,7 @@ struct AreaSelectionView: View {
                         }
                     }
                 }
+                .drawingGroup()
                 
                 // Display dimensions near the selection (only when not recording)
                 if !screenSelectionManager.isRecordingStarted && !currentSelection.isEmpty && currentSelection.width > 60 && currentSelection.height > 30 {
@@ -115,6 +116,9 @@ struct AreaSelectionView: View {
                         print("Start Recording requested:")
                         print("Selection Rectangle: \(currentSelection)")
                         print("Screen ID: \(screenID)")
+                        
+                        // IMPORTANT: Save the current selection to the manager first
+                        saveSelectionToManager() // Add this line
                         
                         if screenID < recorderViewModel.displays.count {
                             let targetDisplay = recorderViewModel.displays[screenID]
@@ -367,59 +371,64 @@ struct AreaSelectionView: View {
     
     // Resize the selection based on a corner and a new position.
     private func resize(from corner: Corner, to position: CGPoint) {
+        
+        let boundedX = max(0, min(position.x, viewSize.width))
+        let boundedY = max(0, min(position.y, viewSize.height))
+        
+        // Create a temporary rect to avoid multiple state updates
         var newRect = currentSelection
-        let boundedPosition = CGPoint(
-            x: max(0, min(position.x, viewSize.width)),
-            y: max(0, min(position.y, viewSize.height))
-        )
         
         switch corner {
         case .topLeft:
-            let width = currentSelection.maxX - boundedPosition.x
-            let height = currentSelection.maxY - boundedPosition.y
+            let width = currentSelection.maxX - boundedX
+            let height = currentSelection.maxY - boundedY
             if width > 10 && height > 10 {
-                newRect = CGRect(x: boundedPosition.x, y: boundedPosition.y, width: width, height: height)
+                newRect = CGRect(x: boundedX, y: boundedY, width: width, height: height)
             }
         case .topRight:
-            let width = boundedPosition.x - currentSelection.minX
-            let height = currentSelection.maxY - boundedPosition.y
+            let width = boundedX - currentSelection.minX
+            let height = currentSelection.maxY - boundedY
             if width > 10 && height > 10 {
-                newRect = CGRect(x: currentSelection.minX, y: boundedPosition.y, width: width, height: height)
+                newRect = CGRect(x: currentSelection.minX, y: boundedY, width: width, height: height)
             }
         case .bottomLeft:
-            let width = currentSelection.maxX - boundedPosition.x
-            let height = boundedPosition.y - currentSelection.minY
+            let width = currentSelection.maxX - boundedX
+            let height = boundedY - currentSelection.minY
             if width > 10 && height > 10 {
-                newRect = CGRect(x: boundedPosition.x, y: currentSelection.minY, width: width, height: height)
+                newRect = CGRect(x: boundedX, y: currentSelection.minY, width: width, height: height)
             }
         case .bottomRight:
-            let width = boundedPosition.x - currentSelection.minX
-            let height = boundedPosition.y - currentSelection.minY
+            let width = boundedX - currentSelection.minX
+            let height = boundedY - currentSelection.minY
             if width > 10 && height > 10 {
                 newRect = CGRect(x: currentSelection.minX, y: currentSelection.minY, width: width, height: height)
             }
         case .top:
-            let height = currentSelection.maxY - boundedPosition.y
+            let height = currentSelection.maxY - boundedY
             if height > 10 {
-                newRect = CGRect(x: currentSelection.minX, y: boundedPosition.y, width: currentSelection.width, height: height)
+                newRect = CGRect(x: currentSelection.minX, y: boundedY, width: currentSelection.width, height: height)
             }
         case .left:
-            let width = currentSelection.maxX - boundedPosition.x
+            let width = currentSelection.maxX - boundedX
             if width > 10 {
-                newRect = CGRect(x: boundedPosition.x, y: currentSelection.minY, width: width, height: currentSelection.height)
+                newRect = CGRect(x: boundedX, y: currentSelection.minY, width: width, height: currentSelection.height)
             }
         case .bottom:
-            let height = boundedPosition.y - currentSelection.minY
+            let height = boundedY - currentSelection.minY
             if height > 10 {
                 newRect = CGRect(x: currentSelection.minX, y: currentSelection.minY, width: currentSelection.width, height: height)
             }
         case .right:
-            let width = boundedPosition.x - currentSelection.minX
+            let width = boundedX - currentSelection.minX
             if width > 10 {
                 newRect = CGRect(x: currentSelection.minX, y: currentSelection.minY, width: width, height: currentSelection.height)
             }
         }
-        currentSelection = newRect
+//        currentSelection = newRect
+        // Only update state once
+        if newRect != currentSelection {
+            currentSelection = newRect
+        }
     }
     
     // Update local state from the manager.
@@ -471,5 +480,9 @@ extension CGPoint {
         return sqrt(dx * dx + dy * dy)
     }
 }
+
+
+
+
 
 
