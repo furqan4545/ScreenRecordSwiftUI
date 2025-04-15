@@ -353,8 +353,8 @@ class PollingCursorAndKeyboardTracker {
     private var displayID: CGDirectDisplayID = 0
     private var screenWidth: Int = 0
     private var screenHeight: Int = 0
-    private var videoWidth: Int = 0
-    private var videoHeight: Int = 0
+    private var videoWidth: CGFloat = 0
+    private var videoHeight: CGFloat = 0
     
     // MARK: - Initialization
     
@@ -366,7 +366,7 @@ class PollingCursorAndKeyboardTracker {
     // MARK: - Public Methods
     
     /// Start tracking cursor position and keyboard events
-    func startTracking(videoWidth: Int = 0, videoHeight: Int = 0) {
+    func startTracking(videoWidth: CGFloat = 0, videoHeight: CGFloat = 0) {
         guard !isTracking else { return }
         
         pollCount = 0
@@ -378,8 +378,8 @@ class PollingCursorAndKeyboardTracker {
         screenWidth = Int(mainDisplay?.frame.width ?? 0)
         screenHeight = Int(mainDisplay?.frame.height ?? 0)
         
-        self.videoWidth = videoWidth > 0 ? videoWidth : screenWidth
-        self.videoHeight = videoHeight > 0 ? videoHeight : screenHeight
+        self.videoWidth = videoWidth > 0 ? videoWidth : 1100
+        self.videoHeight = videoHeight > 0 ? videoHeight : 2000
         
         trackingStartTimeMs = Int64(Date().timeIntervalSince1970 * 1000)
         lastKnownLocation = NSEvent.mouseLocation

@@ -74,6 +74,9 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     private var hasStartedSession = false
     private var videoQuality: VideoQuality = .hdr // Default to HDR
     
+    var recordedVideoWidth: CGFloat = 1920
+    var recordedVideoHeight: CGFloat = 1080
+    
     // buffer queue
     private let sampleBufferQueue = DispatchQueue(label: "com.screenrecorder.sampleBufferQueue")
     
@@ -266,6 +269,9 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         conf.width = Int(filter.contentRect.width) * Int(filter.pointPixelScale)
         conf.height = Int(filter.contentRect.height) * Int(filter.pointPixelScale)
         conf.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(60))
+        
+        recordedVideoWidth = CGFloat(conf.width)
+        recordedVideoHeight = CGFloat(conf.height)
             
         if isAreaRecording, let areaRect = areaRect {
             // when we are recording area... execute this check else continue

@@ -322,10 +322,10 @@ class ScreenRecorderViewModel: ObservableObject {
             Task.detached(priority: .background) {
                 await MainActor.run {
                     // Get the video dimensions from the recorder
-//                    let videoWidth = self.recorder.currentWidth // You'll need to add these properties
-//                    let videoHeight = self.recorder.currentHeight
+                    let videoWidth = self.recorder.recordedVideoWidth // You'll need to add these properties
+                    let videoHeight = self.recorder.recordedVideoHeight
                     
-                    self.inputTracker?.startTracking(videoWidth: 1900, videoHeight: 1200)
+                    self.inputTracker?.startTracking(videoWidth: videoWidth, videoHeight: videoHeight)
                 }
             }
         }
