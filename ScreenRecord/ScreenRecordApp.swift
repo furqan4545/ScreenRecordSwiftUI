@@ -13,9 +13,20 @@ struct ScreenRecorderApp: App {
     @State private var permissionsGranted = false
     @State private var showDisplayOverlays = false
     
-    // Create and provide the selection manager
-    @StateObject private var screenSelectionManager = ScreenSelectionManager()
-    @StateObject private var recorderViewModel = ScreenRecorderViewModel()
+    // Declare the StateObjects without an initial value.
+    @StateObject private var screenSelectionManager: ScreenSelectionManager
+    @StateObject private var recorderViewModel: ScreenRecorderViewModel
+    
+    init() {
+        // Create local instances.
+        let selectionManager = ScreenSelectionManager()
+        let recorderVM = ScreenRecorderViewModel(selectionResetter: selectionManager)
+        
+        // Assign the local instances to the StateObject wrappers.
+        _screenSelectionManager = StateObject(wrappedValue: selectionManager)
+        _recorderViewModel = StateObject(wrappedValue: recorderVM)
+    }
+
     
 
     var body: some Scene {

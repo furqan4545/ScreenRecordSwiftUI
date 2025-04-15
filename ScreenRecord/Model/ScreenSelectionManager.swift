@@ -12,7 +12,11 @@ import SwiftUI
 import Combine
 import AppKit
 
-class ScreenSelectionManager: ObservableObject {
+protocol SelectionResettable {
+    func resetRecording()
+}
+
+class ScreenSelectionManager: ObservableObject, SelectionResettable {
     // The currently selected area if any - only one selection allowed
     @Published var selectedArea: SelectionArea?
     
@@ -97,6 +101,7 @@ class ScreenSelectionManager: ObservableObject {
     
     func resetRecording() {
         isRecordingStarted = false
+        clearAreaSelection()
     }
     //////
     

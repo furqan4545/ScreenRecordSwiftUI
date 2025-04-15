@@ -61,9 +61,14 @@ class ScreenRecorderViewModel: ObservableObject {
     
     // MARK: Window Tracker
     private let windowPickerManager = WindowPickerManager()
+    
+    // Instead of storing a concrete type or a closure,
+    // declare a dependency with a protocol.
+    private let selectionResetter: SelectionResettable
    
     // MARK: - Initialization
-    init() {
+    init(selectionResetter: SelectionResettable) {
+        self.selectionResetter = selectionResetter
         setupDenoiser()
         setupBindings()
         requestPermission()
@@ -72,6 +77,7 @@ class ScreenRecorderViewModel: ObservableObject {
         // Initialize the recorder with the default HDR setting
         setHDRMode(isHDREnabled)
         setupCursorTracking()
+        
     }
     
     // Add a property to track the current recording mode
@@ -240,6 +246,9 @@ class ScreenRecorderViewModel: ObservableObject {
         
         // Cancel the timer when recording stops
         stopTimer()
+        
+        // Then explicitly use the dependency:
+        selectionResetter.resetRecording()
     }
     
     // MARK: Timer methods
