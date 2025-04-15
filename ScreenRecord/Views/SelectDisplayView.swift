@@ -29,7 +29,10 @@ struct SelectDisplayView: View {
             .frame(width: screenSize.width, height: screenSize.height)
             .onEscapeKeyPress {
                 // This will be called when ESC is pressed
-                screenSelectionManager.closeAllOverlays()
+                // Only close overlays if recording has NOT started
+                if !screenSelectionManager.isRecordingStarted {
+                    screenSelectionManager.closeAllOverlays()
+                }
             }
             .onAppear {
                 screenSelectionManager.registerOverlay(screenID: screenID)
@@ -77,24 +80,4 @@ struct SelectDisplayView: View {
             }
     }
     
-    // Setup a global event monitor for the ESC key
-    private func setupEscapeKeyMonitor() {
-        // Create a global event monitor for the Escape key
-        escapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-            // Only handle ESC key and only when we have active overlays
-            if event.keyCode == 53 && !screenSelectionManager.activeOverlays.isEmpty {
-                DispatchQueue.main.async {
-                    screenSelectionManager.closeAllOverlays()
-                }
-            }
-        }
-    }
-    
-    // Clean up the event monitor
-    private func removeEscapeKeyMonitor() {
-        if let monitor = escapeMonitor {
-            NSEvent.removeMonitor(monitor)
-            escapeMonitor = nil
-        }
-    }
 }
