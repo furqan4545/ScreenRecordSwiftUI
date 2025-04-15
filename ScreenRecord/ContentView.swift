@@ -15,6 +15,10 @@ struct ContentView: View {
     @State private var showingSelectionInfo = false
     
     
+    // Initial position for the floating stop button.
+    @State private var stopButtonPosition: CGPoint = CGPoint(x: 150, y: 150)
+    
+    
     // Add this function to your ContentView
     private func testAreaSelection() {
         // Start by opening overlays on all screens
@@ -222,6 +226,12 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                     .padding(.top, 10)
                 }
+                // --- Add a button to open the window ---
+                Button("Show Floating Stop Button (Test)") {
+                     print("Attempting to open stopButton window...")
+                     openWindow(id: "stopButton")
+                }
+                .padding(.bottom)
                 
                 
             }

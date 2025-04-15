@@ -17,6 +17,7 @@ struct ScreenRecorderApp: App {
     @StateObject private var screenSelectionManager = ScreenSelectionManager()
     @StateObject private var recorderViewModel = ScreenRecorderViewModel()
     
+
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -43,9 +44,14 @@ struct ScreenRecorderApp: App {
                 .keyboardShortcut(.init("P", modifiers: [.command, .shift]))
             }
         }
+        .windowLevel(.floating)
+//        .modifier(WindowLevelModifier())  // for older versions less than MacOS 15
         
         // Register the dynamic window scene.
         dynamicDisplayScene
+        
+        // New floating stop button scene.
+        floatingStopButtonScene
         
     }
 }
@@ -70,5 +76,26 @@ extension ScreenRecorderApp {
                     }
             }
         }
+        // Add window configuration for overlays if needed (e.g., borderless, specific level)
+        // .windowStyle(.plain) // Example
+        // .windowLevel(.floating) // Example
     }
+    
+    // New window scene for the floating stop button.
+    @SceneBuilder
+        var floatingStopButtonScene: some Scene {
+            WindowGroup("Stop Button", id: "stopButton") {
+                StopButtonWindowView() // View handles its own background/style
+                    .environmentObject(screenSelectionManager)
+                    .environmentObject(recorderViewModel)
+                    // --- MAKE SURE THERE ARE NO .background() MODIFIERS HERE ---
+            }
+            .windowStyle(.hiddenTitleBar)
+            .windowResizability(.contentSize)
+            .windowLevel(.floating)
+//            .defaultSize(width: boxSize, height: boxSize) // Use constant or derive
+    }
+    // Helper constant matching the view (or pass size via environment/preference)
+//    private var boxSize: CGFloat { 70 }
 }
+
