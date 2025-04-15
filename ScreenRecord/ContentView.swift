@@ -217,8 +217,6 @@ struct ContentView: View {
                     .disabled(screenSelectionManager.isSelectionInProgress)
                     .padding()
                     
-                    
-                    
                     /// Quit Button
                     Button("Quit") {
                         NSApplication.shared.terminate(nil)
@@ -226,18 +224,16 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                     .padding(.top, 10)
                 }
-                // --- Add a button to open the window ---
-                Button("Show Floating Stop Button (Test)") {
-                     print("Attempting to open stopButton window...")
-                     openWindow(id: "stopButton")
-                }
-                .padding(.bottom)
-                
                 
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
+        .onChange(of: viewModel.isRecording) {_, recording  in
+            if recording {
+                openWindow(id: "stopButton")
+            }
+        }
     }
     
     private var processingOverlay: some View {

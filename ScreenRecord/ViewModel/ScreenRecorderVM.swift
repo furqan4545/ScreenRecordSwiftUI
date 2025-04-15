@@ -23,8 +23,12 @@ class ScreenRecorderViewModel: ObservableObject {
     @Published var isProcessingAudio: Bool = false
     @Published var showRecordingInfo: Bool = false
     @Published var isHDREnabled: Bool = true // Default to HDR enabled
-    
     @Published var isInputTrackingEnabled: Bool = true
+    
+    // Add a published property to store the elapsed recording time (in seconds)
+    @Published var elapsedTime: TimeInterval = 0
+    // Timer publisher cancellable
+    private var timerCancellable: AnyCancellable?
    
     // Camera related properties
     @Published var isCameraEnabled: Bool = false {
@@ -65,10 +69,8 @@ class ScreenRecorderViewModel: ObservableObject {
         requestPermission()
         setupCameraBindings()
         setupWindowPickerBinding()
-        
         // Initialize the recorder with the default HDR setting
         setHDRMode(isHDREnabled)
-        
         setupCursorTracking()
     }
     
@@ -108,12 +110,13 @@ class ScreenRecorderViewModel: ObservableObject {
                 self.recorder.startRecording(type: .area(display, selectionRect)) // Specify screen type
                 
                 startInputTrackingIfEnabled()
+                self.startTimer()  // <-- Timer starts here
             }
         } else {
             // If no camera, start screen recording immediately
             self.recorder.startRecording(type: .area(display, selectionRect)) // Specify screen type
-            
             startInputTrackingIfEnabled()
+            self.startTimer()  // <-- Timer starts here
         }
     }
     
@@ -146,6 +149,7 @@ class ScreenRecorderViewModel: ObservableObject {
                         }
                         // START INPUT TRACKING HERE (missing in original code)
                         self.startInputTrackingIfEnabled()
+                        self.startTimer()  // <-- Timer starts here
                     }
                 } else {
                     // If no camera, start window recording immediately
@@ -156,6 +160,7 @@ class ScreenRecorderViewModel: ObservableObject {
                     }
                     // START INPUT TRACKING HERE TOO (missing in original code)
                     self.startInputTrackingIfEnabled()
+                    self.startTimer()  // <-- Timer starts here
                 }
             }
         }
@@ -209,14 +214,17 @@ class ScreenRecorderViewModel: ObservableObject {
                 
                 // Start screen recording after the delay
                 self.recorder.startRecording(type: .screen) // Specify screen type
-                
                 startInputTrackingIfEnabled()
+                
+                // Start input tracking if needed…
+                self.startTimer() // Start the timer when recording actually begins
             }
         } else {
             // If no camera, start screen recording immediately
             recorder.startRecording(type: .screen) // Specify screen type
             
             startInputTrackingIfEnabled()
+            self.startTimer() // Start the timer immediately if no camera is enabled
         }
     }
    
@@ -229,6 +237,28 @@ class ScreenRecorderViewModel: ObservableObject {
         if isCameraEnabled {
             cameraRecorder.stopRecording()
         }
+        
+        // Cancel the timer when recording stops
+        stopTimer()
+    }
+    
+    // MARK: Timer methods
+    private func startTimer() {
+        // Reset the counter
+        elapsedTime = 0
+        timerCancellable?.cancel()
+        // Create a timer that fires every second on the main run loop
+        timerCancellable = Timer.publish(every: 1, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self = self, self.isRecording else { return }
+                self.elapsedTime += 1
+            }
+    }
+    
+    private func stopTimer() {
+        timerCancellable?.cancel()
+        timerCancellable = nil
     }
    
     func requestPermission() {
