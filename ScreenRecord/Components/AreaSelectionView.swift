@@ -118,13 +118,11 @@ struct AreaSelectionView: View {
                         
                         if screenID < recorderViewModel.displays.count {
                             let targetDisplay = recorderViewModel.displays[screenID]
+                            // Set the recording state immediately (without animation)
+                            screenSelectionManager.isRecordingStarted = true
+                            
                             recorderViewModel.startAreaRecording(on: targetDisplay, with: currentSelection)
                             
-                            // Animate state change so overlay across all displays becomes dim black,
-                            // while the selected area stays transparent.
-                            withAnimation {
-                                screenSelectionManager.isRecordingStarted = true
-                            }
                         } else {
                             print("Invalid screen ID")
                         }

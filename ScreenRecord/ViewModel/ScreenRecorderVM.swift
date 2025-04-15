@@ -69,6 +69,7 @@ class ScreenRecorderViewModel: ObservableObject {
     // MARK: - Initialization
     init(selectionResetter: SelectionResettable) {
         self.selectionResetter = selectionResetter
+        
         setupDenoiser()
         setupBindings()
         requestPermission()
