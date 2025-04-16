@@ -74,8 +74,8 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     private var hasStartedSession = false
     private var videoQuality: VideoQuality = .hdr // Default to HDR
     
-    var recordedVideoWidth: CGFloat = 1920
-    var recordedVideoHeight: CGFloat = 1080
+    var recordedVideoWidth: Int = 1920
+    var recordedVideoHeight: Int = 1080
     
     // buffer queue
     private let sampleBufferQueue = DispatchQueue(label: "com.screenrecorder.sampleBufferQueue")
@@ -270,10 +270,26 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         conf.height = Int(filter.contentRect.height) * Int(filter.pointPixelScale)
         conf.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(60))
         
-        recordedVideoWidth = CGFloat(conf.width)
-        recordedVideoHeight = CGFloat(conf.height)
+        //////////////// ////// //////  test and useless , remove this code later //////
+//        let logicalWidth = filter.contentRect.width
+//        let logicalHeight = filter.contentRect.height
+//        let scale = filter.pointPixelScale  // e.g. 2.0 on a Retina display
+//        for (i, display) in displays.enumerated() {
+//            print("Display \(i+1): \(display.width) x \(display.height) MOTHERFUCKER pixels")
+//        }
+//        conf.width = Int(logicalWidth * CGFloat(scale))
+//        conf.height = Int(logicalHeight * CGFloat(scale))
+        ////// ////// ////// ////// ////// ////// test end here .// ///////////
+
+        recordedVideoWidth = conf.width
+        recordedVideoHeight = conf.height
             
         if isAreaRecording, let areaRect = areaRect {
+            // overriding the width and height value in area recording mode.
+            conf.width = Int(areaRect.width) * Int(filter.pointPixelScale)
+            conf.height = Int(areaRect.height) * Int(filter.pointPixelScale)
+            recordedVideoWidth = conf.width
+            recordedVideoHeight = conf.height
             // when we are recording area... execute this check else continue
             // IMP capture portion of the screen
             // Only trigger for area recordings.

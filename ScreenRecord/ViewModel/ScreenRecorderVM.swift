@@ -127,11 +127,52 @@ class ScreenRecorderViewModel: ObservableObject {
         }
     }
     
+    func displayForFilter(_ filter: SCContentFilter) -> SCDisplay? {
+        // Convert filter.contentRect to global coordinates if necessary.
+        // (Ensure that the coordinate systems align between SCDisplay.frame and filter.contentRect.)
+        for display in displays {
+            // For instance, you could check if the filter’s origin lies within the display's frame.
+            if display.frame.contains(filter.contentRect.origin) {
+                return display
+            }
+        }
+        return nil
+    }
+    
     
     // MARK: - Setup Window Picker.
     private func setupWindowPickerBinding() {
         windowPickerManager.onContentSelected = { [weak self] filter in
             guard let self = self else { return }
+            
+            ///// works perfect for getting window information
+            // Call the helper method on self:
+            if let selectedDisplay = self.displayForFilter(filter) {
+                // Calculate the native recording dimensions using the filter’s scale
+                let physicalWidth = Int(filter.contentRect.width * CGFloat(filter.pointPixelScale))
+                let physicalHeight = Int(filter.contentRect.height * CGFloat(filter.pointPixelScale))
+                
+                // Now print out details from the selected display:
+                print("Selected display info:")
+                print("Display ID: \(selectedDisplay.displayID)")
+                print("Native resolution: \(selectedDisplay.width) x \(selectedDisplay.height) pixels")
+                print("Frame: \(selectedDisplay.frame)")
+                print("Recording area: \(physicalWidth) x \(physicalHeight) pixels")
+            } else {
+                print("No display associated with this filter could be found.")
+            }
+            ///////
+    //
+                let associatedDisplay = displayForFilter(filter)
+                // Convert logical dimensions to physical pixels using pointPixelScale
+                let physicalWidth = Int(filter.contentRect.width * CGFloat(filter.pointPixelScale))
+                let physicalHeight = Int(filter.contentRect.height * CGFloat(filter.pointPixelScale))
+
+                
+                print("associated display \(String(describing: associatedDisplay?.displayID))")
+                print("associated display sdsd \(String(describing: associatedDisplay?.width))")
+                print("Recording area: \(physicalWidth) x \(physicalHeight) bitch ass pixels")
+            ////////////////////////////////
             
             // Immediately capture what we need before the Task
             let isEnabled = self.isCameraEnabled
