@@ -43,13 +43,15 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         case idle
         case preparing
         case recording
+        case saving
         case error(Error)
         
         static func == (lhs: RecorderState, rhs: RecorderState) -> Bool {
             switch (lhs, rhs) {
             case (.idle, .idle),
                 (.preparing, .preparing),
-                (.recording, .recording):
+                (.recording, .recording),
+                (.saving, .saving):
                 return true
             case (.error(let lhsError), .error(let rhsError)):
                 return lhsError.localizedDescription == rhsError.localizedDescription
@@ -236,24 +238,12 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         }
     }
     
-//    func stopRecording() {
-//        guard state == .recording, let stream = stream else { return }
-//        
-//        stream.stopCapture()
-//        self.stream = nil
-//        closeVideo()
-//        
-//        // Reset the asset writers and session flag for the next recording.
-//        vW = nil
-//        micWriter = nil
-//        hasStartedSession = false
-//        
-//        streamType = nil
-//        state = .idle
-//    }
     
     func stopRecording() {
         guard state == .recording, let stream = stream else { return }
+        
+        // Set state to saving first to show loading indicator
+        state = .saving
         
         // Set flag BEFORE stopping stream to prevent new frames from being processed
         isStoppingRecording = true
@@ -282,6 +272,22 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         }
     }
     
+//    // Add this method to handle the actual cleanup
+//    private func completeRecordingStop() {
+//        // Set stream to nil to prevent any new callbacks
+//        self.stream = nil
+//        
+//        // Close video files
+//        closeVideo()
+//        
+//        // Reset state
+//        vW = nil
+//        micWriter = nil
+//        hasStartedSession = false
+//        streamType = nil
+//        isStoppingRecording = false
+//        state = .idle
+//    }
     // Add this method to handle the actual cleanup
     private func completeRecordingStop() {
         // Set stream to nil to prevent any new callbacks
@@ -290,16 +296,32 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         // Close video files
         closeVideo()
         
-        // Reset state
-        vW = nil
-        micWriter = nil
-        hasStartedSession = false
-        streamType = nil
-        isStoppingRecording = false
-        state = .idle
+        // Ensure the saving state lasts at least 1 second for visual feedback
+        let savingStartTime = Date()
+//        let minimumSavingDuration: TimeInterval = 1.0
+        let minimumSavingDuration: TimeInterval = 0.5
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self = self else { return }
+            
+            // Calculate how long we've been in saving state
+            let elapsedTime = Date().timeIntervalSince(savingStartTime)
+            let remainingTime = max(0, minimumSavingDuration - elapsedTime)
+            
+            // Wait the remaining time if needed to ensure minimum saving duration
+            DispatchQueue.main.asyncAfter(deadline: .now() + remainingTime) { [weak self] in
+                guard let self = self else { return }
+                
+                // Reset state
+                vW = nil
+                micWriter = nil
+                hasStartedSession = false
+                streamType = nil
+                isStoppingRecording = false
+                state = .idle
+            }
+        }
     }
-
-    
     
     
     // MARK: - Private Methods

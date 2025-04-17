@@ -49,6 +49,8 @@ class ScreenRecorderViewModel: ObservableObject {
     
     // MARK: recording window or screen
     @Published var recordingMode: RecordingMode = .screen
+    // managing post recording state below
+    @Published var isSavingRecording: Bool = false
     
     // MARK: - Private Properties
     private let recorder = ScreenRecorderWithHDR()
@@ -473,6 +475,7 @@ class ScreenRecorderViewModel: ObservableObject {
                 case .idle:
                     self.isRecording = false
                     self.isPreparing = false
+                    self.isSavingRecording = false
                     
                     // Only show recording info when we've completed a recording
                     if self.recordingURL != nil {
@@ -482,16 +485,24 @@ class ScreenRecorderViewModel: ObservableObject {
                 case .preparing:
                     self.isPreparing = true
                     self.isRecording = false
+                    self.isSavingRecording = false
                     // Reset enhanced audio URL when starting a new recording
                     self.enhancedAudioURL = nil
                     
                 case .recording:
                     self.isRecording = true
                     self.isPreparing = false
+                    self.isSavingRecording = false
+                    
+                case .saving:
+                    self.isRecording = false
+                    self.isPreparing = false
+                    self.isSavingRecording = true
                     
                 case .error(let error):
                     self.isRecording = false
                     self.isPreparing = false
+                    self.isSavingRecording = false
                     self.errorMessage = error.localizedDescription
                 }
             }
