@@ -118,13 +118,13 @@ class ScreenRecorderViewModel: ObservableObject {
                 // Start screen recording after the delay
                 self.recorder.startRecording(type: .area(display, selectionRect)) // Specify screen type
                 
-                startInputTrackingIfEnabled()
+                startInputTrackingIfEnabled(isAreaRecording: true, areaOriginalDisplay: display)
                 self.startTimer()  // <-- Timer starts here
             }
         } else {
             // If no camera, start screen recording immediately
             self.recorder.startRecording(type: .area(display, selectionRect)) // Specify screen type
-            startInputTrackingIfEnabled()
+            startInputTrackingIfEnabled(isAreaRecording: true, areaOriginalDisplay: display)
             self.startTimer()  // <-- Timer starts here
         }
     }
@@ -353,27 +353,42 @@ class ScreenRecorderViewModel: ObservableObject {
     }
     
     // Start cursor tracking
-    private func startInputTrackingIfEnabled(isAreaRecording: Bool = false, isDisplayRecording: Bool = false) {
+    private func startInputTrackingIfEnabled(isAreaRecording: Bool = false, isDisplayRecording: Bool = false,
+                                             areaOriginalDisplay: SCDisplay? = nil) {
         guard isInputTrackingEnabled else { return }
         
         if isInputTrackingEnabled {
             // Use Task to ensure this doesn't block recording
-            Task.detached(priority: .background) { [weak self, isDisplayRecording] in
+            Task.detached(priority: .background) { [weak self, isDisplayRecording, isAreaRecording] in
                 guard let self = self else { return }
                 
                 await MainActor.run {
                     // Get the video dimensions from the recorder
                     let videoWidth = self.recorder.recordedVideoWidth // You'll need to add these properties
                     let videoHeight = self.recorder.recordedVideoHeight
+                    // area original display
+                    let originalDisplay = areaOriginalDisplay ?? self.displays.first!
+                    
+                    // display dimensions without scalling
+                    let displayOrigWidth = videoWidth / Int(self.recorder.selectedFilter?.pointPixelScale ?? 2)
+                    let displayOrigHeight = videoHeight / Int(self.recorder.selectedFilter?.pointPixelScale ?? 2)
                     
                     if isDisplayRecording {
                         self.inputTracker?.startTracking(
                             videoWidth: videoWidth,
                             videoHeight: videoHeight,
-                            displayOrigWidth: videoWidth,
-                            displayOrigHeight: videoHeight
+                            displayOrigWidth: displayOrigWidth,
+                            displayOrigHeight: displayOrigHeight
                         )
-                    } else {
+                    } else if isAreaRecording {
+                        self.inputTracker?.startTracking(
+                            videoWidth: videoWidth,
+                            videoHeight: videoHeight,
+                            displayOrigWidth: originalDisplay.width,
+                            displayOrigHeight: originalDisplay.height
+                        )
+                    }
+                    else {
                         self.inputTracker?.startTracking(
                             videoWidth: videoWidth,
                             videoHeight: videoHeight,

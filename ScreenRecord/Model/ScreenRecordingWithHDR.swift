@@ -108,6 +108,11 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         self.videoQuality = quality
     }
     
+    // MARK: Expose the last‐selected content filter (window/display) if any
+    var selectedFilter: SCContentFilter? {
+        return filter
+    }
+    
     // MARK: - Public Methods
     func requestPermission() {
         SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: true) { [weak self] content, error in
