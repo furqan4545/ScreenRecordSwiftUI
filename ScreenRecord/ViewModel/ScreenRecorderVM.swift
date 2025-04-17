@@ -52,6 +52,28 @@ class ScreenRecorderViewModel: ObservableObject {
     // managing post recording state below
     @Published var isSavingRecording: Bool = false
     
+    // MARK: Microphone related properties
+    @Published var isMicrophoneEnabled: Bool = true {
+        didSet {
+            if isMicrophoneEnabled != oldValue {
+                if isMicrophoneEnabled {
+                    // When enabling microphone, check permission
+                    checkMicrophonePermission()
+                }
+                // Update recorder with microphone state
+                recorder.setMicrophoneEnabled(isMicrophoneEnabled)
+            }
+        }
+    }
+    @Published var availableMicrophones: [AVCaptureDevice] = []
+    @Published var selectedMicrophone: AVCaptureDevice? {
+        didSet {
+            if let microphone = selectedMicrophone {
+                recorder.selectMicrophone(microphone)
+            }
+        }
+    }
+    
     // MARK: - Private Properties
     private let recorder = ScreenRecorderWithHDR()
     private let cameraRecorder = CameraRecorder()
@@ -434,6 +456,42 @@ class ScreenRecorderViewModel: ObservableObject {
         }
     }
     
+    // MARK: Add this to your init() method or setup binding function.
+    func setupMicrophoneBindings() {
+        // Get available microphones initially
+        refreshAvailableMicrophones()
+        
+        // Check microphone permission if enabled by default
+        if isMicrophoneEnabled {
+            checkMicrophonePermission()
+        }
+    }
+
+    // Add this method to refresh the list of available microphones
+    func refreshAvailableMicrophones() {
+        
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+                deviceTypes: [.microphone, .external],
+                mediaType: .audio,
+                position: .unspecified
+            )
+        let audioDevices = discoverySession.devices
+        
+        DispatchQueue.main.async {
+            self.availableMicrophones = audioDevices
+            
+            // Select first microphone if none is selected and there are available mics
+            if self.selectedMicrophone == nil && !audioDevices.isEmpty {
+                self.selectedMicrophone = audioDevices.first
+            }
+        }
+    }
+
+    // Add this method to handle microphone selection
+    func selectMicrophone(_ microphone: AVCaptureDevice) {
+        selectedMicrophone = microphone
+    }
+    
     
     // Denoiser: remove background noise.
     func enhanceAudio() {
@@ -543,6 +601,9 @@ class ScreenRecorderViewModel: ObservableObject {
                 self?.recorder.setVideoQuality(enabled ? .hdr : .hd)
             }
             .store(in: &cancellables)
+        
+        // Add this to ensure camera and mic are checked on launch:
+        setupMicrophoneBindings()
     }
    
     private func setupCameraBindings() {

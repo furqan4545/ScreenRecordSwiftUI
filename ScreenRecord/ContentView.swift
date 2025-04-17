@@ -145,6 +145,48 @@ struct ContentView: View {
                 }
                 .padding(.leading, 20)
             }
+            
+            // Microphone options
+            Divider()
+                .padding(.vertical, 5)
+            
+            HStack {
+                Toggle("Enable Microphone Recording", isOn: $viewModel.isMicrophoneEnabled)
+                    .toggleStyle(.switch)
+                    .disabled(viewModel.isRecording || viewModel.isPreparing)
+                
+                if viewModel.isMicrophoneEnabled {
+                    // Microphone status indicator
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.caption)
+                }
+            }
+
+            if viewModel.isMicrophoneEnabled, !viewModel.availableMicrophones.isEmpty {
+                HStack {
+                    Text("Microphone:")
+                        .font(.subheadline)
+                    
+                    Picker("", selection: Binding(
+                        get: { viewModel.selectedMicrophone },
+                        set: { microphone in
+                            if let microphone = microphone {
+                                viewModel.selectMicrophone(microphone)
+                            }
+                        }
+                    )) {
+                        ForEach(viewModel.availableMicrophones, id: \.uniqueID) { microphone in
+                            Text(microphone.localizedName)
+                                .tag(microphone as AVCaptureDevice?)
+                        }
+                    }
+                    .frame(maxWidth: 200)
+                    .disabled(viewModel.isRecording || viewModel.isPreparing)
+                }
+                .padding(.leading, 20)
+            }
+            
             // Add HDR toggle section here
             Divider()
                 .padding(.vertical, 5)

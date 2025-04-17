@@ -10,6 +10,7 @@ import AVFoundation
 import ScreenCaptureKit
 import Combine
 import Accelerate
+import CoreAudio
 
 /// Model class that handles screen recording functionality
 class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
@@ -79,6 +80,10 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     var recordedVideoWidth: Int = 1920
     var recordedVideoHeight: Int = 1080
     
+    // microphone properties
+    private var isMicrophoneEnabled: Bool = true
+    private var selectedMicrophone: AVCaptureDevice?
+    
     // buffer queue
     private let sampleBufferQueue = DispatchQueue(label: "com.screenrecorder.sampleBufferQueue")
     
@@ -116,6 +121,112 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     var selectedFilter: SCContentFilter? {
         return filter
     }
+    
+    // Method to enable/disable microphone recording
+    func setMicrophoneEnabled(_ enabled: Bool) {
+        isMicrophoneEnabled = enabled
+        print("Microphone recording \(enabled ? "enabled" : "disabled")")
+    }
+
+    func selectMicrophone(_ microphone: AVCaptureDevice) {
+        selectedMicrophone = microphone
+        print("Selected microphone: \(microphone.localizedName)")
+        
+        // Set this device as the default input
+        setMicrophoneAsDefault(captureDevice: microphone)
+    }
+    
+    private func setMicrophoneAsDefault(captureDevice: AVCaptureDevice) {
+        // Find the device ID that matches this capture device
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        var propertySize: UInt32 = 0
+        var status = AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            &propertySize
+        )
+        
+        if status != noErr {
+            return
+        }
+        
+        let deviceCount = Int(propertySize) / MemoryLayout<AudioDeviceID>.size
+        var deviceIDs = [AudioDeviceID](repeating: 0, count: deviceCount)
+        
+        status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            &propertySize,
+            &deviceIDs
+        )
+        
+        if status != noErr {
+            return
+        }
+        
+        // Find the matching device by UID
+        for deviceID in deviceIDs {
+            // Correctly handle CFString property using UnsafeMutablePointer
+            let cfUID = UnsafeMutablePointer<Unmanaged<CFString>?>.allocate(capacity: 1)
+            defer { cfUID.deallocate() }
+            
+            var propAddress = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyDeviceUID,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            
+            var uidSize = UInt32(MemoryLayout<CFString>.size)
+            
+            // Get the device UID
+            let uidStatus = AudioObjectGetPropertyData(
+                deviceID,
+                &propAddress,
+                0,
+                nil,
+                &uidSize,
+                cfUID
+            )
+            
+            if uidStatus == noErr, let uidRef = cfUID.pointee?.takeRetainedValue() {
+                // Convert the CFString to a Swift String
+                let deviceUIDString = uidRef as String
+                
+                if deviceUIDString == captureDevice.uniqueID {
+                    // Found matching device, set as default input
+                    var defaultAddress = AudioObjectPropertyAddress(
+                        mSelector: kAudioHardwarePropertyDefaultInputDevice,
+                        mScope: kAudioObjectPropertyScopeGlobal,
+                        mElement: kAudioObjectPropertyElementMain
+                    )
+                    
+                    var mutableDeviceID = deviceID
+                    
+                    AudioObjectSetPropertyData(
+                        AudioObjectID(kAudioObjectSystemObject),
+                        &defaultAddress,
+                        0,
+                        nil,
+                        UInt32(MemoryLayout<AudioDeviceID>.size),
+                        &mutableDeviceID
+                    )
+                    
+                    print("Set default input device to: \(captureDevice.localizedName)")
+                    break
+                }
+            }
+        }
+    }
+    
     
     // MARK: - Public Methods
     func requestPermission() {
@@ -501,7 +612,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
                     AVLinearPCMIsNonInterleaved: false
                 ]
                 
-                recordMic = true  // Set to true if you want to enable microphone recording
+                recordMic = isMicrophoneEnabled  // Set to true if you want to enable microphone recording
                 
                 vwInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
                 awInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
@@ -533,14 +644,27 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
                     vW!.add(awInput)
                 }
                 
-                if recordMic, let micWriterInput = micWriterInput, let micWriter = micWriter {
+                if recordMic && isMicrophoneEnabled, let micWriterInput = micWriterInput, let micWriter = micWriter {
                     if micWriter.canAdd(micWriterInput) {
                         micWriter.add(micWriterInput)
                     }
                     
+                    // Reset the audio engine if it was running
+                    if audioEngine.isRunning {
+                        audioEngine.stop()
+                    }
+                    audioEngine.reset()
+                    
                     // Instead of tapping directly on the inputNode, we create a mixer node to amplify the mic signal.
                     let inputNode = audioEngine.inputNode
                     let inputFormat = inputNode.outputFormat(forBus: 0)
+                    
+                    // Log the selected microphone for debugging
+                    if let selectedMic = selectedMicrophone {
+                        print("Attempting to use microphone: \(selectedMic.localizedName)")
+                        // Note: On macOS, the system handles the default input device
+                        // The user needs to select their preferred device in System Preferences/Settings
+                    }
                     
                     // Create and attach a mixer node for the microphone.
                     let micMixer = AVAudioMixerNode()
@@ -642,7 +766,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         vwInput.markAsFinished()
         awInput.markAsFinished()
         
-        if recordMic, let micWriterInput = micWriterInput {
+        if recordMic && isMicrophoneEnabled, let micWriterInput = micWriterInput {
             micWriterInput.markAsFinished()
             audioEngine.inputNode.removeTap(onBus: 0)
             audioEngine.stop()
