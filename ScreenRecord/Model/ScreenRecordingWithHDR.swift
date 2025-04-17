@@ -84,6 +84,8 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     private var micWriter: AVAssetWriter?
     private var micWriterInput: AVAssetWriterInput?
     
+    private var isStoppingRecording = false
+    
     // MARK: - Published Properties
     @Published var state: RecorderState = .idle
     @Published var displays: [SCDisplay] = []
@@ -234,21 +236,69 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         }
     }
     
+//    func stopRecording() {
+//        guard state == .recording, let stream = stream else { return }
+//        
+//        stream.stopCapture()
+//        self.stream = nil
+//        closeVideo()
+//        
+//        // Reset the asset writers and session flag for the next recording.
+//        vW = nil
+//        micWriter = nil
+//        hasStartedSession = false
+//        
+//        streamType = nil
+//        state = .idle
+//    }
+    
     func stopRecording() {
         guard state == .recording, let stream = stream else { return }
         
+        // Set flag BEFORE stopping stream to prevent new frames from being processed
+        isStoppingRecording = true
+        
+        // Create a timeout to ensure we don't wait forever
+        let timeoutWorkItem = DispatchWorkItem {
+            print("Recording stop timeout triggered - forcing completion")
+            self.completeRecordingStop()
+        }
+        
+        // Schedule timeout (5 seconds should be enough)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0, execute: timeoutWorkItem)
+        
+        // Stop capturing from the stream
         stream.stopCapture()
+        
+        // Give a small delay for last frames to process
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
+            
+            // Cancel timeout since we're executing normally
+            timeoutWorkItem.cancel()
+            
+            // Complete the recording stop process
+            self.completeRecordingStop()
+        }
+    }
+    
+    // Add this method to handle the actual cleanup
+    private func completeRecordingStop() {
+        // Set stream to nil to prevent any new callbacks
         self.stream = nil
+        
+        // Close video files
         closeVideo()
         
-        // Reset the asset writers and session flag for the next recording.
+        // Reset state
         vW = nil
         micWriter = nil
         hasStartedSession = false
-        
         streamType = nil
+        isStoppingRecording = false
         state = .idle
     }
+
     
     
     
@@ -307,7 +357,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         
         ///  test
         conf.scalesToFit = true
-        conf.queueDepth = 8
+        conf.queueDepth = 6
         /// test
         
         conf.sampleRate = audioSettings["AVSampleRateKey"] as! Int
@@ -531,6 +581,36 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         }
     }
     
+//    private func closeVideo() {
+//        guard let vW = vW else { return }
+//        
+//        let dispatchGroup = DispatchGroup()
+//        dispatchGroup.enter()
+//        
+//        vwInput.markAsFinished()
+//        awInput.markAsFinished()
+//        
+//        if recordMic, let micWriterInput = micWriterInput {
+//            micWriterInput.markAsFinished()
+//            audioEngine.inputNode.removeTap(onBus: 0)
+//            audioEngine.stop()
+//            
+//            if let micWriter = micWriter {
+//                dispatchGroup.enter()
+//                micWriter.finishWriting {
+//                    dispatchGroup.leave()
+//                }
+//            }
+//        }
+//        
+//        vW.finishWriting {
+//            dispatchGroup.leave()
+//        }
+//        
+//        dispatchGroup.wait()
+//    }
+    
+    // Modify closeVideo to enforce a timeout
     private func closeVideo() {
         guard let vW = vW else { return }
         
@@ -557,17 +637,21 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
             dispatchGroup.leave()
         }
         
-        dispatchGroup.wait()
+        // Use a timeout to avoid hanging if finishWriting callbacks don't complete
+        let result = dispatchGroup.wait(timeout: .now() + 3.0)
+        if result == .timedOut {
+            print("Warning: Video finalization timed out")
+        }
     }
     
     
     // MARK: - SCStreamOutput Methods
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of outputType: SCStreamOutputType) {
-        guard sampleBuffer.isValid else { return }
+        guard sampleBuffer.isValid, !isStoppingRecording else { return }
         
         // Process sample buffer on a serial queue to avoid race conditions
         sampleBufferQueue.async { [weak self] in
-            guard let self = self else { return }
+            guard let self = self, !self.isStoppingRecording else { return }
             
             switch outputType {
             case .screen:
