@@ -187,6 +187,24 @@ struct ContentView: View {
                 .padding(.leading, 20)
             }
             
+            // System Audio options
+            Divider()
+                .padding(.vertical, 5)
+                
+            HStack {
+                Toggle("Record System Audio", isOn: $viewModel.isSystemAudioEnabled)
+                    .toggleStyle(.switch)
+                    .disabled(viewModel.isRecording || viewModel.isPreparing)
+                
+                if viewModel.isSystemAudioEnabled {
+                    // System audio status indicator
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.caption)
+                }
+            }
+            .help("When enabled, audio from apps and system sounds will be recorded")
+            
             // Add HDR toggle section here
             Divider()
                 .padding(.vertical, 5)

@@ -91,6 +91,9 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     private var micWriter: AVAssetWriter?
     private var micWriterInput: AVAssetWriterInput?
     
+    // System Audio
+    private var isSystemAudioEnabled: Bool = true
+    
     private var isStoppingRecording = false
     
     // MARK: - Published Properties
@@ -115,6 +118,12 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
     // MARK: - Public Methods
     func setVideoQuality(_ quality: VideoQuality) {
         self.videoQuality = quality
+    }
+    
+    // MARK: System audio
+    func setSystemAudioEnabled(_ enabled: Bool) {
+        isSystemAudioEnabled = enabled
+        print("System audio recording \(enabled ? "enabled" : "disabled")")
     }
     
     // MARK: Expose the last‐selected content filter (window/display) if any
@@ -486,7 +495,7 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         }
 
         conf.showsCursor = true
-        conf.capturesAudio = true
+        conf.capturesAudio = isSystemAudioEnabled
         
         ///  test
         conf.scalesToFit = true
@@ -501,7 +510,12 @@ class ScreenRecorderWithHDR: NSObject, SCStreamDelegate, SCStreamOutput {
         do {
             if let stream = stream {
                 try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: .global())
-                try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: .global())
+                
+                // Only add audio output if system audio is enabled
+                if isSystemAudioEnabled {
+                    try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: .global())
+                }
+                
                 initVideo(conf: conf)
                 try await stream.startCapture()
                 

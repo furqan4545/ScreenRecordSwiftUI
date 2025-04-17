@@ -74,6 +74,16 @@ class ScreenRecorderViewModel: ObservableObject {
         }
     }
     
+    // MARK: System audio
+    @Published var isSystemAudioEnabled: Bool = true {
+        didSet {
+            if isSystemAudioEnabled != oldValue {
+                // Update recorder with system audio state
+                recorder.setSystemAudioEnabled(isSystemAudioEnabled)
+            }
+        }
+    }
+    
     // MARK: - Private Properties
     private let recorder = ScreenRecorderWithHDR()
     private let cameraRecorder = CameraRecorder()
