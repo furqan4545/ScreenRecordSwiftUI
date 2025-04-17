@@ -72,17 +72,17 @@ class PollingCursorAndKeyboardTracker {
     // MARK: - Public Methods
     
     /// Start tracking cursor position and keyboard events
-    func startTracking(videoWidth: Int = 0, videoHeight: Int = 0) {
+    func startTracking(videoWidth: Int = 0, videoHeight: Int = 0, displayOrigWidth: Int = 0, displayOrigHeight: Int = 0) {
         guard !isTracking else { return }
         
         pollCount = 0
         dataBatch.removeAll()
         hasWrittenHeader = false
         
-        let mainDisplay = NSScreen.main
+//        let mainDisplay = NSScreen.main
         displayID = CGMainDisplayID()
-        screenWidth = Int(mainDisplay?.frame.width ?? 0)
-        screenHeight = Int(mainDisplay?.frame.height ?? 0)
+        screenWidth = displayOrigWidth
+        screenHeight = displayOrigHeight
         
         self.videoWidth = videoWidth > 0 ? videoWidth : 1100
         self.videoHeight = videoHeight > 0 ? videoHeight : 2000

@@ -61,6 +61,8 @@ class ScreenRecorderViewModel: ObservableObject {
     
     // MARK: Window Tracker
     private let windowPickerManager = WindowPickerManager()
+    private var displayWidth: Int  = 0
+    private var displayHeight: Int = 0
     
     // Instead of storing a concrete type or a closure,
     // declare a dependency with a protocol.
@@ -148,31 +150,19 @@ class ScreenRecorderViewModel: ObservableObject {
             ///// works perfect for getting window information
             // Call the helper method on self:
             if let selectedDisplay = self.displayForFilter(filter) {
-                // Calculate the native recording dimensions using the filter’s scale
-                let physicalWidth = Int(filter.contentRect.width * CGFloat(filter.pointPixelScale))
-                let physicalHeight = Int(filter.contentRect.height * CGFloat(filter.pointPixelScale))
+//                // Calculate the native recording dimensions using the filter’s scale
+//                let physicalWidth = Int(filter.contentRect.width * CGFloat(filter.pointPixelScale))
+//                let physicalHeight = Int(filter.contentRect.height * CGFloat(filter.pointPixelScale))
                 
                 // Now print out details from the selected display:
-                print("Selected display info:")
                 print("Display ID: \(selectedDisplay.displayID)")
                 print("Native resolution: \(selectedDisplay.width) x \(selectedDisplay.height) pixels")
-                print("Frame: \(selectedDisplay.frame)")
-                print("Recording area: \(physicalWidth) x \(physicalHeight) pixels")
+                displayWidth = selectedDisplay.width
+                displayHeight = selectedDisplay.height
             } else {
                 print("No display associated with this filter could be found.")
             }
             ///////
-    //
-                let associatedDisplay = displayForFilter(filter)
-                // Convert logical dimensions to physical pixels using pointPixelScale
-                let physicalWidth = Int(filter.contentRect.width * CGFloat(filter.pointPixelScale))
-                let physicalHeight = Int(filter.contentRect.height * CGFloat(filter.pointPixelScale))
-
-                
-                print("associated display \(String(describing: associatedDisplay?.displayID))")
-                print("associated display sdsd \(String(describing: associatedDisplay?.width))")
-                print("Recording area: \(physicalWidth) x \(physicalHeight) bitch ass pixels")
-            ////////////////////////////////
             
             // Immediately capture what we need before the Task
             let isEnabled = self.isCameraEnabled
@@ -192,22 +182,28 @@ class ScreenRecorderViewModel: ObservableObject {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         if self.recordingMode == .window {
                             self.recorder.startRecording(type: .window(filter))
+                            // START INPUT TRACKING HERE (missing in original code)
+                            self.startInputTrackingIfEnabled()
                         } else {
                             self.recorder.startRecording(type: .display(filter))
+                            // START INPUT TRACKING HERE (missing in original code)
+                            self.startInputTrackingIfEnabled(isDisplayRecording: true)
                         }
-                        // START INPUT TRACKING HERE (missing in original code)
-                        self.startInputTrackingIfEnabled()
+                        
                         self.startTimer()  // <-- Timer starts here
                     }
                 } else {
                     // If no camera, start window recording immediately
                     if self.recordingMode == .window {
                         self.recorder.startRecording(type: .window(filter))
+                        // START INPUT TRACKING HERE TOO (missing in original code)
+                        self.startInputTrackingIfEnabled()
                     } else {
                         self.recorder.startRecording(type: .display(filter))
+                        // START INPUT TRACKING HERE TOO (missing in original code)
+                        self.startInputTrackingIfEnabled(isDisplayRecording: true)
                     }
-                    // START INPUT TRACKING HERE TOO (missing in original code)
-                    self.startInputTrackingIfEnabled()
+                    
                     self.startTimer()  // <-- Timer starts here
                 }
             }
@@ -357,16 +353,34 @@ class ScreenRecorderViewModel: ObservableObject {
     }
     
     // Start cursor tracking
-    private func startInputTrackingIfEnabled() {
+    private func startInputTrackingIfEnabled(isAreaRecording: Bool = false, isDisplayRecording: Bool = false) {
+        guard isInputTrackingEnabled else { return }
+        
         if isInputTrackingEnabled {
             // Use Task to ensure this doesn't block recording
-            Task.detached(priority: .background) {
+            Task.detached(priority: .background) { [weak self, isDisplayRecording] in
+                guard let self = self else { return }
+                
                 await MainActor.run {
                     // Get the video dimensions from the recorder
                     let videoWidth = self.recorder.recordedVideoWidth // You'll need to add these properties
                     let videoHeight = self.recorder.recordedVideoHeight
                     
-                    self.inputTracker?.startTracking(videoWidth: videoWidth, videoHeight: videoHeight)
+                    if isDisplayRecording {
+                        self.inputTracker?.startTracking(
+                            videoWidth: videoWidth,
+                            videoHeight: videoHeight,
+                            displayOrigWidth: videoWidth,
+                            displayOrigHeight: videoHeight
+                        )
+                    } else {
+                        self.inputTracker?.startTracking(
+                            videoWidth: videoWidth,
+                            videoHeight: videoHeight,
+                            displayOrigWidth: self.displayWidth,
+                            displayOrigHeight: self.displayHeight
+                        )
+                    }
                 }
             }
         }
