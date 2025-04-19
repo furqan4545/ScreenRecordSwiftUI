@@ -60,6 +60,7 @@ class ScreenRecorderViewModel: ObservableObject {
                 if isMicrophoneEnabled {
                     // When enabling microphone, check permission
                     checkMicrophonePermission()
+                    refreshAvailableMicrophones()
                 }
                 // Update recorder with microphone state
                 recorder.setMicrophoneEnabled(isMicrophoneEnabled)
