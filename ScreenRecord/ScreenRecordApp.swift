@@ -109,4 +109,3 @@ extension ScreenRecorderApp {
     // Helper constant matching the view (or pass size via environment/preference)
 //    private var boxSize: CGFloat { 70 }
 }
-

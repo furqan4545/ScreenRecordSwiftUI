@@ -7,6 +7,6 @@
 
 import Foundation
 
-struct VideoAsset {
+struct VideoAsset: Codable, Hashable {
     let url: URL
 }
